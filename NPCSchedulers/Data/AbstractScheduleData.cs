@@ -1,7 +1,31 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace NPCSchedulers.DATA
 {
+    public abstract class AbstractScheduleDataType<T> where T : AbstractScheduleDataType<T>, new()
+    {
+        public Dictionary<string, T> Data { get; protected set; }
+
+        protected AbstractScheduleDataType()
+        {
+            Data = new Dictionary<string, T>();
+        }
+
+        public static T FromJson(string json)
+        {
+            T instance = new T();
+            instance.Data = string.IsNullOrWhiteSpace(json)
+                ? new Dictionary<string, T>()
+                : JsonConvert.DeserializeObject<Dictionary<string, T>>(json) ?? new Dictionary<string, T>();
+            return instance;
+        }
+
+        public string ToJson()
+        {
+            return JsonConvert.SerializeObject(Data, Formatting.Indented);
+        }
+    }
     public abstract class AbstractScheduleData
     {
         protected Dictionary<string, object> scheduleData = new Dictionary<string, object>();
@@ -59,5 +83,20 @@ namespace NPCSchedulers.DATA
                 SaveSchedule(npcName, key, newScheduleEntry);
             }
         }
+
+        /// <summary>
+        /// 파일 내용을 읽어오는 공통 메서드
+        /// </summary>
+        protected string LoadFileContents(string filePath)
+        {
+            if (!File.Exists(filePath)) return string.Empty;
+
+            return File.ReadAllText(filePath);
+        }
+
+        /// <summary>
+        /// 파일 내용을 특정 타입으로 변환하는 추상 메서드 (각 서브클래스에서 구현)
+        /// </summary>
+        protected abstract object ParseFileContents(string fileContents);
     }
 }

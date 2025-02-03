@@ -1,21 +1,34 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using System.IO;
+
 namespace NPCSchedulers.DATA
 {
+    public class OriginalScheduleDataType : AbstractScheduleDataType<OriginalScheduleDataType>
+    {
+    }
     public class OriginalScheduleData : AbstractScheduleData
     {
+        private static readonly string DataPath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedule_data.json");
+
         public override void LoadData()
         {
             scheduleData.Clear();
-            var rawData = ScheduleManager.LoadScheduleRawData(); // schedules_data.json 로드
+            string fileContents = LoadFileContents(DataPath);
+            var parsedData = ParseFileContents(fileContents) as Dictionary<string, NPCScheduleDataType>;
 
-            foreach (var npcEntry in rawData)
+            if (parsedData != null)
             {
-                scheduleData[npcEntry.Key] = npcEntry.Value;
+                foreach (var npcEntry in parsedData)
+                {
+                    scheduleData[npcEntry.Key] = npcEntry.Value;
+                }
             }
         }
 
         public override object GetSchedule(string npcName, string key)
         {
-            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is NPCScheduleData npcData)
+            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is NPCScheduleDataType npcData)
             {
                 return npcData.RawData.ContainsKey(key) ? npcData.RawData[key] : null;
             }
@@ -24,7 +37,7 @@ namespace NPCSchedulers.DATA
 
         public override HashSet<string> GetScheduleKeys(string npcName)
         {
-            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is NPCScheduleData npcData)
+            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is NPCScheduleDataType npcData)
             {
                 return new HashSet<string>(npcData.RawData.Keys);
             }
@@ -32,19 +45,14 @@ namespace NPCSchedulers.DATA
         }
 
         /// <summary>
-        /// 원본 스케줄은 변경할 수 없도록 SaveSchedule을 오버라이드하여 비활성화
+        /// 파일 내용을 JSON으로 변환하는 메서드
         /// </summary>
-        public override void SaveSchedule(string npcName, string key, object scheduleEntry)
+        protected override object ParseFileContents(string fileContents)
         {
-            throw new System.InvalidOperationException("Cannot modify original schedule data.");
-        }
-
-        /// <summary>
-        /// 원본 스케줄은 업데이트할 수 없도록 UpdateSchedule을 오버라이드하여 비활성화
-        /// </summary>
-        public override void UpdateSchedule(string npcName, string key, object newScheduleEntry)
-        {
-            throw new System.InvalidOperationException("Cannot modify original schedule data.");
+            return string.IsNullOrWhiteSpace(fileContents)
+                ? new Dictionary<string, NPCScheduleDataType>()
+                : JsonConvert.DeserializeObject<Dictionary<string, NPCScheduleDataType>>(fileContents)
+                  ?? new Dictionary<string, NPCScheduleDataType>();
         }
     }
 }

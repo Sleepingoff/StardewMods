@@ -1,52 +1,61 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+
 namespace NPCSchedulers.DATA
 {
+
+    public class UserScheduleDataType : AbstractScheduleDataType<UserScheduleDataType>
+    {
+    }
+
+
+
     public class UserScheduleData : AbstractScheduleData
     {
+        private static readonly string FilePath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedules.json");
+
         public override void LoadData()
         {
             scheduleData.Clear();
-            var modifiedData = ScheduleManager.LoadScheduleByUser("");
+            string fileContents = LoadFileContents(FilePath);
+            var parsedData = ParseFileContents(fileContents) as Dictionary<string, Dictionary<string, string>>;
 
-            foreach (var npcEntry in modifiedData)
+            if (parsedData != null)
             {
-                scheduleData[npcEntry.Key] = npcEntry.Value.Item2;
+                foreach (var npcEntry in parsedData)
+                {
+                    scheduleData[npcEntry.Key] = npcEntry.Value;
+                }
             }
         }
 
         public override object GetSchedule(string npcName, string key)
         {
-            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is List<ScheduleEntry> scheduleList)
+            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is Dictionary<string, string> npcSchedules)
             {
-                return scheduleList.Find(entry => entry.Key == key);
+                return npcSchedules.ContainsKey(key) ? npcSchedules[key] : null;
             }
             return null;
         }
 
         public override HashSet<string> GetScheduleKeys(string npcName)
         {
-            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is List<ScheduleEntry> scheduleList)
+            if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is Dictionary<string, string> npcSchedules)
             {
-                return new HashSet<string>(scheduleList.ConvertAll(entry => entry.Key));
+                return new HashSet<string>(npcSchedules.Keys);
             }
             return new HashSet<string>();
         }
 
-        public void SaveUserSchedule(string npcName, string key, ScheduleEntry scheduleEntry)
+        /// <summary>
+        /// 파일 내용을 JSON으로 변환하는 메서드
+        /// </summary>
+        protected override object ParseFileContents(string fileContents)
         {
-            SaveSchedule(npcName, key, scheduleEntry);
-            ScheduleManager.SaveSchedule(npcName, key.Split('_')[0], int.Parse(key.Split('_')[1]), new Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>
-            {
-                { key, (new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>()), new List<ScheduleEntry> { scheduleEntry }) }
-            });
-        }
-
-        public void UpdateUserSchedule(string npcName, string key, ScheduleEntry newScheduleEntry)
-        {
-            UpdateSchedule(npcName, key, newScheduleEntry);
-            ScheduleManager.SaveSchedule(npcName, key.Split('_')[0], int.Parse(key.Split('_')[1]), new Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>
-            {
-                { key, (new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>()), new List<ScheduleEntry> { newScheduleEntry }) }
-            });
+            return string.IsNullOrWhiteSpace(fileContents)
+                ? new Dictionary<string, Dictionary<string, string>>()
+                : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(fileContents)
+                  ?? new Dictionary<string, Dictionary<string, string>>();
         }
     }
 }

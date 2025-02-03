@@ -304,13 +304,13 @@ namespace NPCSchedulers
             string[] days = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
             return days.Contains(key);
         }
-        public static Dictionary<string, NPCScheduleData> LoadScheduleRawData()
+        public static Dictionary<string, NPCScheduleDataType> LoadScheduleRawData()
         {
             string dataPath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedule_data.json");
 
             if (!File.Exists(dataPath))
             {
-                return new Dictionary<string, NPCScheduleData>();
+                return new Dictionary<string, NPCScheduleDataType>();
             }
 
             try
@@ -323,13 +323,13 @@ namespace NPCSchedulers
                 };
 
                 // ✅ 확실한 타입 지정하여 JSON 파싱
-                var parsedData = JsonConvert.DeserializeObject<Dictionary<string, NPCScheduleData>>(json, settings);
-                return parsedData ?? new Dictionary<string, NPCScheduleData>();
+                var parsedData = JsonConvert.DeserializeObject<Dictionary<string, NPCScheduleDataType>>(json, settings);
+                return parsedData ?? new Dictionary<string, NPCScheduleDataType>();
             }
             catch (Exception ex)
             {
                 ModEntry.Instance.Monitor.Log($"❌ Error parsing schedule data: {ex.Message}", LogLevel.Error);
-                return new Dictionary<string, NPCScheduleData>();
+                return new Dictionary<string, NPCScheduleDataType>();
             }
         }
         // 🔥 새로운 시즌을 고려한 유효성 검사 함수 추가
@@ -376,7 +376,7 @@ namespace NPCSchedulers
             string npcName = npc.Name;
             Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> modifiedSchedules = LoadScheduleByUser(npc.Name); // 수정된 schedules.json 불러오기
 
-            Dictionary<string, NPCScheduleData> scheduleData = LoadScheduleRawData(); // 🔥 기존 schedule_data.json 로드
+            Dictionary<string, NPCScheduleDataType> scheduleData = LoadScheduleRawData(); // 🔥 기존 schedule_data.json 로드
             var finalSchedule = new Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>();
             // 1️⃣ 수정된 스케줄이 있으면 우선 적용
             string modifiedKey = $"{season.ToLower()}_{day}";
