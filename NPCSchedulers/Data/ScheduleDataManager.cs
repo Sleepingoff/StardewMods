@@ -44,7 +44,7 @@ namespace NPCSchedulers
         {
             Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> finalSchedule = new();
             Dictionary<string, NPCScheduleDataType> originalData = originalSchedule.LoadOriginalSchedules();
-            Dictionary<string, NPCScheduleDataType> userRawData = userSchedule.LoadUserSchedules();
+            Dictionary<string, NPCScheduleDataType> userRawData = UserScheduleData.LoadUserSchedules();
 
 
             // 1️⃣ 유저 데이터 먼저 확인
@@ -80,7 +80,7 @@ namespace NPCSchedulers
         /// </summary>
         public static void SaveUserSchedule(string npcName, string key, FriendshipConditionEntry friendshipCondition, List<ScheduleEntry> scheduleList)
         {
-            Dictionary<string, NPCScheduleDataType> userSchedules = userSchedule.LoadUserSchedules();
+            Dictionary<string, NPCScheduleDataType> userSchedules = UserScheduleData.LoadUserSchedules();
 
             if (!userSchedules.ContainsKey(npcName))
             {

@@ -116,6 +116,8 @@ namespace NPCSchedulers.DATA
         {
             Condition = new Dictionary<string, int> { { npcName, heartLevel } };
         }
+
+
     }
     public class ScheduleEntry
     {
@@ -162,16 +164,99 @@ namespace NPCSchedulers.DATA
         }
 
         // 🔹 데이터 수정 메서드 추가
-        public void SetTime(int newTime) => Time = newTime;
-        public void SetLocation(string newLocation) => Location = newLocation;
-        public void SetCoordinates(int newX, int newY)
+        public void SetScheduleEntry(Dictionary<string, object> updates)
         {
-            X = newX;
-            Y = newY;
+            foreach (var entry in updates)
+            {
+                switch (entry.Key)
+                {
+                    case "Time":
+                        if (entry.Value is int time) Time = time;
+                        break;
+                    case "Location":
+                        if (entry.Value is string location) Location = location;
+                        break;
+                    case "X":
+                        if (entry.Value is int x) X = x;
+                        break;
+                    case "Y":
+                        if (entry.Value is int y) Y = y;
+                        break;
+                    case "Direction":
+                        if (entry.Value is int direction) Direction = direction;
+                        break;
+                    case "Action":
+                        if (entry.Value is string action) Action = action;
+                        break;
+                    case "Talk":
+                        if (entry.Value is string talk) Talk = talk;
+                        break;
+                }
+            }
         }
-        public void SetDirection(int newDirection) => Direction = newDirection;
-        public void SetAction(string newAction) => Action = newAction;
-        public void SetTalk(string talk) => Talk = talk;
+
+        public static List<ScheduleEntry> ParseScheduleEntries(string npcName, string key, string rawSchedule, out FriendshipConditionEntry friendshipCondition)
+        {
+            List<ScheduleEntry> entries = new();
+            friendshipCondition = null;
+
+            if (string.IsNullOrWhiteSpace(rawSchedule)) return entries;
+
+            string[] scheduleParts = rawSchedule.Split('/');
+
+            foreach (var part in scheduleParts)
+            {
+                string[] elements = part.Split(' ');
+                if (elements.Length == 0) continue;
+
+                // 🔹 여러 NPC 우정 조건 처리
+                if (elements[0] == "NOT" && elements[1] == "friendship")
+                {
+                    Dictionary<string, int> condition = new();
+                    for (int i = 2; i < elements.Length; i += 2)
+                    {
+                        if (i + 1 < elements.Length && int.TryParse(elements[i + 1], out int level))
+                        {
+                            condition[elements[i]] = level;  // NPC 이름 → 우정 레벨 저장
+                        }
+                    }
+                    friendshipCondition = new FriendshipConditionEntry(npcName, key, condition);
+                    continue;
+                }
+
+                // 🔹 시간 파싱 (시간이 없으면 기본값 `600` 적용)
+                int time = 600;
+                int startIndex = 0;
+
+                if (int.TryParse(elements[0], out int parsedTime))
+                {
+                    time = parsedTime;
+                    startIndex = 1;  // 시간이 포함된 경우 인덱스 조정
+                }
+
+                // 🔹 "2440 bed" 같은 경우를 처리
+                if (startIndex == 1 && elements.Length == 2)
+                {
+                    string action = elements[startIndex];  // "bed"
+                    entries.Add(new ScheduleEntry(key, time, "", 0, 0, 0, action, "None"));
+                    continue;
+                }
+
+                // 🔹 일반적인 스케줄 데이터 파싱 (시간이 없을 수도 있음)
+                if (elements.Length - startIndex < 4) continue;
+
+                string location = elements[startIndex];
+                int x = int.Parse(elements[startIndex + 1]);
+                int y = int.Parse(elements[startIndex + 2]);
+                int direction = int.Parse(elements[startIndex + 3]);
+                string actionValue = elements.Length > startIndex + 4 ? elements[startIndex + 4] : "None";
+
+                entries.Add(new ScheduleEntry(key, time, location, x, y, direction, actionValue, "None"));
+            }
+
+            return entries;
+        }
+
     }
 }
 

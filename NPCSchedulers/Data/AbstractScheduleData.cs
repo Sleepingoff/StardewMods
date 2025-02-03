@@ -90,7 +90,7 @@ namespace NPCSchedulers.DATA
         /// <summary>
         /// 파일 내용을 읽어오는 공통 메서드
         /// </summary>
-        protected string LoadFileContents(string filePath)
+        protected static string LoadFileContents(string filePath)
         {
             if (!File.Exists(filePath)) return string.Empty;
 
