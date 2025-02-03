@@ -41,9 +41,7 @@
     <Compile Include="Data\UserScheduleData.cs" />
     <Compile Include="Data\ScheduleDataManager.cs" />
     <Compile Include="Data\ScheduleEntry.cs" />
-    <Compile Include="Data\FriendshipConditionEntry.cs" />
     <Compile Include="Data\NPCScheduleData.cs" />
-    <Compile Include="Data\ScheduleManager.cs" />
 
     <!-- UI 관련 파일 -->
     <Compile Include="UI\ScheduleUIElements.cs" />
@@ -51,6 +49,7 @@
     <Compile Include="UI\ScheduleEditUI.cs" />
 
     <!-- Mod Entry -->
+    <Compile Include="ScheduleManager.cs" />
     <Compile Include="NPCSchedulers.cs" />
 </ItemGroup>
 

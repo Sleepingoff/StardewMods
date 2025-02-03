@@ -6,6 +6,10 @@ namespace NPCSchedulers.DATA
 
     public class UserScheduleDataType : AbstractScheduleDataType<UserScheduleDataType>
     {
+        internal void SetData(Dictionary<string, Dictionary<string, string>> dictionary)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -13,7 +17,7 @@ namespace NPCSchedulers.DATA
     public class UserScheduleData : AbstractScheduleData
     {
         private static readonly string FilePath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedules.json");
-
+        //내부 상태 업데이트
         public override void LoadData()
         {
             scheduleData.Clear();
@@ -28,7 +32,18 @@ namespace NPCSchedulers.DATA
                 }
             }
         }
+        //상태 변경 없음
 
+        public Dictionary<string, NPCScheduleDataType> LoadUserSchedules()
+        {
+            string fileContents = LoadFileContents(FilePath);
+            var userRawData = string.IsNullOrWhiteSpace(fileContents)
+                ? new Dictionary<string, Dictionary<string, string>>()
+                : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(fileContents)
+                  ?? new Dictionary<string, Dictionary<string, string>>();
+
+            return ConvertUserDataToNPCScheduleDataType(userRawData);
+        }
         public override object GetSchedule(string npcName, string key)
         {
             if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is Dictionary<string, string> npcSchedules)
@@ -47,6 +62,20 @@ namespace NPCSchedulers.DATA
             return new HashSet<string>();
         }
 
+        public void SaveUserSchedules(Dictionary<string, NPCScheduleDataType> userSchedules)
+        {
+            UserScheduleDataType userScheduleDataType = new UserScheduleDataType();
+            userScheduleDataType.SetData(userSchedules.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.RawData
+            ));
+
+            string json = userScheduleDataType.ToJson();
+            File.WriteAllText(FilePath, json);
+        }
+
+
+
         /// <summary>
         /// 파일 내용을 JSON으로 변환하는 메서드
         /// </summary>
@@ -57,5 +86,25 @@ namespace NPCSchedulers.DATA
                 : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(fileContents)
                   ?? new Dictionary<string, Dictionary<string, string>>();
         }
+
+        private static Dictionary<string, NPCScheduleDataType> ConvertUserDataToNPCScheduleDataType(Dictionary<string, Dictionary<string, string>> userRawData)
+        {
+            Dictionary<string, NPCScheduleDataType> convertedData = new();
+
+            foreach (var npcEntry in userRawData)
+            {
+                NPCScheduleDataType npcScheduleData = new NPCScheduleDataType();
+
+                foreach (var scheduleEntry in npcEntry.Value)
+                {
+                    npcScheduleData.RawData[scheduleEntry.Key] = scheduleEntry.Value;
+                }
+
+                convertedData[npcEntry.Key] = npcScheduleData;
+            }
+
+            return convertedData;
+        }
+
     }
 }

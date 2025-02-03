@@ -5,13 +5,16 @@ namespace NPCSchedulers.DATA
 {
     public abstract class AbstractScheduleDataType<T> where T : AbstractScheduleDataType<T>, new()
     {
-        public Dictionary<string, T> Data { get; protected set; }
+        public Dictionary<string, T> Data { get; private set; }
 
         protected AbstractScheduleDataType()
         {
             Data = new Dictionary<string, T>();
         }
-
+        public void SetData(Dictionary<string, T> newData)
+        {
+            Data = newData;
+        }
         public static T FromJson(string json)
         {
             T instance = new T();

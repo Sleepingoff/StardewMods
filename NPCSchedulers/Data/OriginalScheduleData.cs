@@ -11,6 +11,7 @@ namespace NPCSchedulers.DATA
     {
         private static readonly string DataPath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedule_data.json");
 
+        //내부 상태 업데이트
         public override void LoadData()
         {
             scheduleData.Clear();
@@ -26,6 +27,15 @@ namespace NPCSchedulers.DATA
             }
         }
 
+        //상태 변경 없음
+        public Dictionary<string, NPCScheduleDataType> LoadOriginalSchedules()
+        {
+            string fileContents = LoadFileContents(DataPath);
+            return string.IsNullOrWhiteSpace(fileContents)
+                ? new Dictionary<string, NPCScheduleDataType>()
+                : JsonConvert.DeserializeObject<Dictionary<string, NPCScheduleDataType>>(fileContents)
+                  ?? new Dictionary<string, NPCScheduleDataType>();
+        }
         public override object GetSchedule(string npcName, string key)
         {
             if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is NPCScheduleDataType npcData)

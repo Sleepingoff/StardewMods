@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NPCSchedulers")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a57025f70308803e551146a76d72b0e0564055f0")]
 [assembly: System.Reflection.AssemblyProductAttribute("NPCSchedulers")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NPCSchedulers")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

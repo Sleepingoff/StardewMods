@@ -13,17 +13,7 @@ namespace NPCSchedulers.DATA
             ScheduleKeys = new Dictionary<string, List<string>>();
         }
 
-        public static NPCScheduleDataType FromJson(string json)
-        {
-            return string.IsNullOrWhiteSpace(json)
-                ? new NPCScheduleDataType()
-                : JsonConvert.DeserializeObject<NPCScheduleDataType>(json) ?? new NPCScheduleDataType();
-        }
 
-        public string ToJson()
-        {
-            return JsonConvert.SerializeObject(this, Formatting.Indented);
-        }
     }
 
 }
