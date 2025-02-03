@@ -1,0 +1,14 @@
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.csproj.AssemblyReference.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.csproj.SuggestedBindingRedirects.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.dll.config
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.AssemblyInfoInputs.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.AssemblyInfo.cs
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.csproj.CoreCompileInputs.cache
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\manifest.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\NPCSchedulers.dll.config
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\NPCSchedulers.deps.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\NPCSchedulers.dll
+C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.dll
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\i18n\default.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\i18n\ko.json
