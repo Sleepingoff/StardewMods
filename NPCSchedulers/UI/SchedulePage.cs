@@ -16,7 +16,6 @@ namespace NPCSchedulers.UI
         private static ScheduleListUI scheduleListUI;
         private static ScheduleEditUI scheduleEditUI;
         private static ScheduleDateUI scheduleDateUI;
-        private static FriendshipUI friendshipUI;
         private static ClickableTextureComponent scheduleButton;
         public static void ToggleSchedulePage(ProfileMenu profileMenu)
         {
@@ -45,7 +44,6 @@ namespace NPCSchedulers.UI
 
             scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition);
             scheduleDateUI = new ScheduleDateUI(scheduleDateUIDisplayPosition); // 날짜 UI 위치
-            friendshipUI = new FriendshipUI(0); // 기본 호감도 6으로 설정
             scheduleEditUI = null;
             isOpen = true;
         }
@@ -79,7 +77,6 @@ namespace NPCSchedulers.UI
 
             Rectangle rectangle = new Rectangle(x, y, 400, 720 - IClickableMenu.borderWidth * 2);
             Rectangle itemDisplayRect = new Rectangle(x, y, 1204, 720 - IClickableMenu.borderWidth * 2);
-            Rectangle characterSpriteBox = new Rectangle(xPositionOnScreen + 64 - 12 + (400 - Game1.nightbg.Width) / 2, yPositionOnScreen + IClickableMenu.borderWidth, Game1.nightbg.Width, Game1.nightbg.Height);
 
             itemDisplayRect.X += rectangle.Width;
             itemDisplayRect.Width -= rectangle.Width;
@@ -119,13 +116,8 @@ namespace NPCSchedulers.UI
             SpriteText.drawStringWithScrollCenteredAt(b, "Today's Schedule",
                                                       itemDisplayRect.Center.X, itemDisplayRect.Top);
 
-            Vector2 startVector = new Vector2(characterStatusDisplayBox.Width + characterStatusDisplayBox.X, itemDisplayRect.Top + 60);
-
             // 🔹 날짜 UI 그리기
             scheduleDateUI?.Draw(b);
-
-            // 🔹 우정 UI 그리기
-            friendshipUI?.Draw(b);
 
             // 🔹 스케줄 리스트 UI 렌더링
             scheduleListUI?.Draw(b);
@@ -179,7 +171,6 @@ namespace NPCSchedulers.UI
             if (!isOpen) return;
 
             scheduleDateUI?.LeftClick(x, y);
-            friendshipUI?.LeftClick(x, y);
             scheduleListUI?.LeftClick(x, y);
             scheduleEditUI?.LeftClick(x, y);
         }

@@ -12,8 +12,10 @@ namespace NPCSchedulers.UI
     {
         private string scheduleKey;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
-        private Rectangle scheduleBox;
         private Dictionary<string, int> friendshipConditionEntry;
+
+        private FriendshipTargetUI friendshipTargetUI;
+        private Rectangle scheduleBox;
         public int Height = 80;
         public ScheduleUI(Vector2 position, string scheduleKey, List<ScheduleEntry> entries)
         {
@@ -22,6 +24,7 @@ namespace NPCSchedulers.UI
             friendshipConditionEntry = UIStateManager.Instance.EditedFriendshipCondition;
             // 🔹 스케줄 박스 크기 설정
             scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
+            friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y));
             Height = entries.Count * Height + friendshipConditionEntry.Count * 60 + 100;
         }
 
@@ -35,19 +38,8 @@ namespace NPCSchedulers.UI
             SpriteText.drawString(b, $"{scheduleKey}", (int)titleDisplayPosition.X, (int)titleDisplayPosition.Y, layerDepth: 0.1f, color: keyColor);
 
             int yOffset = scheduleBox.Y + 60;
-            if (friendshipConditionEntry != null)
-            {
-
-                foreach (var friendship in friendshipConditionEntry)
-                {
-                    string npcName = friendship.Key;
-                    int level = friendship.Value;
-                    b.DrawString(Game1.smallFont, $"{npcName} >= {level}", new Vector2((int)titleDisplayPosition.X, (int)yOffset), Color.Gray);
-                    yOffset += Game1.smallFont.LineSpacing;
-                }
-            }
-
-
+            friendshipTargetUI.Draw(b);
+            yOffset += friendshipTargetUI.Height;
             // 🔹 여러 개의 상세 스케줄 출력 (각 항목마다 삭제 버튼 포함)
 
             Vector2 detailDisplayPosition = new Vector2(scheduleBox.X + 10, 0);
@@ -155,26 +147,14 @@ namespace NPCSchedulers.UI
 
         public override bool Draw(SpriteBatch b)
         {
-            if (!IsVisible) return true;
-
-            b.End();
-            b.GraphicsDevice.ScissorRectangle = viewport;
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, new RasterizerState() { ScissorTestEnable = true });
-
+            base.Draw(b);
             // 🔹 `foreach`문 제거 → `ScheduleUI` 리스트를 그대로 렌더링
             foreach (var scheduleUI in scheduleEntries)
             {
                 scheduleUI.Draw(b);
             }
 
-            b.End();
-            b.Begin();
-
-            // 🔹 스크롤 버튼 그리기
-            upArrow.draw(b);
-            downArrow.draw(b);
-
-            return false;
+            return base.DrawEnd(b);
         }
 
 

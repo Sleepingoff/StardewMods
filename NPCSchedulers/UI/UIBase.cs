@@ -58,6 +58,15 @@ namespace NPCSchedulers.UI
 
             return false;
         }
+
+
+        public bool DrawEnd(SpriteBatch b)
+        {
+            b.End();
+            b.Begin();
+
+            return false;
+        }
         public override void LeftClick(int x, int y)
         {
             if (!IsVisible) return;
