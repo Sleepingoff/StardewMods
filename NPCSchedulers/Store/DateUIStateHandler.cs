@@ -2,36 +2,49 @@ using System.Collections.Generic;
 
 namespace NPCSchedulers.Store
 {
-    public class DateUIStateHandler : IUIStateHandler<int>
+    public class DateUIStateHandler : BaseUIStateHandler<(string, int)>
     {
-        private static readonly List<string> seasons = new() { "Spring", "Summer", "Fall", "Winter" };
+        private static readonly List<string> seasons = new() { "Spring", "Summer", "Fall", "Winter", "Rain", "Festival" };
+        private string selectedSeason = "Spring";
+        private int selectedDate = 1;
 
-        public void LoadData()
+        public DateUIStateHandler(string npcName, string scheduleKey) : base(npcName, scheduleKey)
         {
-            // 이미 UIStateManager에서 상태를 유지하므로 별도 데이터 로딩 없음
+        }
+        public override void InitData()
+        {
+            selectedSeason = "Spring";
+            selectedDate = 1;
+        }
+        public override (string, int) GetData()
+        {
+            return (selectedSeason, selectedDate);
         }
 
-        public void SaveData(int date)
+        public override void SaveData((string, int) data)
         {
-            UIStateManager.Instance.SetSelectedDate(date);
+            var (season, date) = data;
+            selectedSeason = season;
+            selectedDate = date;
         }
 
-        public void UpdateData(int date)
+        public override void UpdateData((string, int) data)
         {
-            UIStateManager.Instance.SetSelectedDate(date);
+            var (season, date) = data;
+            int currentIndex = seasons.IndexOf(selectedSeason);
+            int index = seasons.IndexOf(season);
+            int direction = index - currentIndex;
+            int nextIndex = (index + direction) % seasons.Count;
+            if (nextIndex < 0) nextIndex += seasons.Count;
+
+            SaveData((seasons[nextIndex], date));
         }
 
-        public void DeleteData(int date)
+        public override void DeleteData((string, int) data)
         {
             // 날짜를 삭제하는 개념은 없으므로 삭제 로직은 비워둠
         }
 
-        public void ChangeSeason(int direction)
-        {
-            int index = seasons.IndexOf(UIStateManager.Instance.SelectedSeason);
-            int nextIndex = (index + direction) % seasons.Count;
-            if (nextIndex < 0) nextIndex += seasons.Count;
-            UIStateManager.Instance.SetSelectedSeason(seasons[nextIndex]);
-        }
+
     }
 }
