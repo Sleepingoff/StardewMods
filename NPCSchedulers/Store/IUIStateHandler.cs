@@ -1,10 +1,20 @@
 namespace NPCSchedulers.Store
 {
-    public interface IUIStateHandler<T>
+    public abstract class BaseUIStateHandler<T>
     {
-        void LoadData();
-        void SaveData(T data);
-        void UpdateData(T data);
-        void DeleteData(T data);
+        protected string npcName;
+        protected string scheduleKey;
+
+        public BaseUIStateHandler(string npcName, string scheduleKey)
+        {
+            this.npcName = npcName;
+            this.scheduleKey = scheduleKey;
+        }
+
+        public abstract void InitData();
+        public abstract T GetData();
+        public abstract void SaveData(T data);
+        public abstract void UpdateData(T data);
+        public abstract void DeleteData(T data);
     }
 }
