@@ -35,17 +35,23 @@
     </Content>
   </ItemGroup>
 <ItemGroup>
+    <!-- Type 관련 파일 -->
+    <Compile Include="Types\Type.cs" />
+    <Compile Include="Types\Schedule.cs" />
     <!-- Data 관련 파일 -->
     <Compile Include="Data\AbstractScheduleData.cs" />
     <Compile Include="Data\OriginalScheduleData.cs" />
     <Compile Include="Data\UserScheduleData.cs" />
     <Compile Include="Data\ScheduleDataManager.cs" />
     <Compile Include="Data\ScheduleEntry.cs" />
-    <Compile Include="Data\NPCScheduleData.cs" />
-
+    <!-- Store 관련 파일 -->
+    <Compile Include="Store\UIStateManager.cs" />
+    <Compile Include="Store\IUIStateHandler.cs" />
+    <Compile Include="Store\ScheduleUIStateHandler.cs" />
+    <Compile Include="Store\FriendshipUIStateHandler.cs" />
+    <Compile Include="Store\DateUIStateHandler.cs" />
     <!-- UI 관련 파일 -->
     <Compile Include="UI\ScheduleUIElements.cs" />
-    <Compile Include="UI\UIStateManager.cs" />
     <Compile Include="UI\UIBase.cs" />
     <Compile Include="UI\FriendshipUI.cs" />
     <Compile Include="UI\ScheduleDateUI.cs" />

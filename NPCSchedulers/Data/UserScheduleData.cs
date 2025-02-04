@@ -1,16 +1,9 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using NPCSchedulers.Type;
 
 namespace NPCSchedulers.DATA
 {
-
-    public class UserScheduleDataType : AbstractScheduleDataType<UserScheduleDataType>
-    {
-        internal void SetData(Dictionary<string, Dictionary<string, string>> dictionary)
-        {
-            throw new NotImplementedException();
-        }
-    }
 
 
 

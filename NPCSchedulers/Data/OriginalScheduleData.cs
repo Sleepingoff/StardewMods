@@ -4,9 +4,7 @@ using System.IO;
 
 namespace NPCSchedulers.DATA
 {
-    public class OriginalScheduleDataType : AbstractScheduleDataType<OriginalScheduleDataType>
-    {
-    }
+
     public class OriginalScheduleData : AbstractScheduleData
     {
         private static readonly string DataPath = Path.Combine(ModEntry.Instance.Helper.DirectoryPath, "schedule_data.json");

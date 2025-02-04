@@ -1,11 +1,9 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using NPCSchedulers.DATA;
+using NPCSchedulers.Store;
 using StardewModdingAPI;
 using StardewValley;
-using StardewValley.BellsAndWhistles;
 using StardewValley.Menus;
-using System.Collections.Generic;
 
 namespace NPCSchedulers.UI
 {

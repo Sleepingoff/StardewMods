@@ -72,9 +72,13 @@ namespace NPCSchedulers
             int y = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.Y);
             SchedulePage.CreateScheduleButton(profileMenu);
             schedulePage = new SchedulePage();
-            if (SchedulePage.IsButtonClicked(x, y))
+            if (SchedulePage.IsOpenPage(x, y))
             {
                 SchedulePage.ToggleSchedulePage(profileMenu);
+            }
+            else if (SchedulePage.IsOpenFriendshipList(x, y))
+            {
+                SchedulePage.ToggleFriendshipList();
             }
         }
 

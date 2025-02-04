@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 using StardewValley.Menus;
+using NPCSchedulers.Store;
 
 namespace NPCSchedulers.UI
 {
@@ -15,18 +16,17 @@ namespace NPCSchedulers.UI
         public ScheduleDateUI(Vector2 position)
         {
             this.position = new Vector2(position.X + 600, position.Y + 150);
-            Console.WriteLine(this.position);
             // 🔹 날짜 슬라이더 초기화 (0~99 범위를 1~28 날짜로 변환)
-            dateSlider = new OptionsSlider("", 0, (int)this.position.X + 250, (int)this.position.Y + 50);
+            dateSlider = new OptionsSlider("", 0, (int)this.position.X + 300, (int)this.position.Y);
             dateSlider.value = (UIStateManager.Instance.SelectedDate - 1) * 99 / 27;
 
             // 🔹 계절 변경 좌우 버튼 초기화
             leftButton = new ClickableTextureComponent(
-                new Rectangle((int)this.position.X, (int)this.position.Y, 32, 32),
+                new Rectangle((int)this.position.X, (int)this.position.Y - 50, 32, 32),
                 Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f);
 
             rightButton = new ClickableTextureComponent(
-                new Rectangle((int)this.position.X + 450, (int)this.position.Y, 32, 32),
+                new Rectangle((int)this.position.X + 450, (int)this.position.Y - 50, 32, 32),
                 Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f);
 
         }
@@ -43,8 +43,8 @@ namespace NPCSchedulers.UI
             dateSlider.draw(b, 0, 0);
 
             // 🔹 현재 선택된 날짜 텍스트 표시
-            b.DrawString(Game1.smallFont, $"{UIStateManager.Instance.SelectedDate}일",
-                         new Vector2(position.X + 200, position.Y + 10), Color.Brown);
+            b.DrawString(Game1.smallFont, $"{UIStateManager.Instance.SelectedDate}",
+                         new Vector2(position.X + 250, position.Y - 10), Color.Brown);
 
             b.DrawString(Game1.smallFont, $"{UIStateManager.Instance.SelectedSeason}",
                     new Vector2(position.X + 200, position.Y - 40), Color.Brown);

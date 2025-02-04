@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 using StardewValley.Menus;
+using NPCSchedulers.Store;
 
 namespace NPCSchedulers.UI
 {

@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using NPCSchedulers.DATA;
+using NPCSchedulers.Store;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewValley.Menus;
@@ -42,7 +42,7 @@ namespace NPCSchedulers.UI
             yOffset += friendshipTargetUI.Height;
             // 🔹 여러 개의 상세 스케줄 출력 (각 항목마다 삭제 버튼 포함)
 
-            Vector2 detailDisplayPosition = new Vector2(scheduleBox.X + 10, 0);
+            Vector2 detailDisplayPosition = new Vector2(scheduleBox.X, 0);
             foreach (var entry in entries)
             {
                 Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset, scheduleBox.Width, scheduleBox.Height);
@@ -56,12 +56,12 @@ namespace NPCSchedulers.UI
                 b.DrawString(Game1.smallFont, scheduleText, new Vector2(scheduleBox.X + 10, yOffset + 10), Color.Black);
                 // 🔹 개별 삭제 버튼 추가
                 ClickableTextureComponent deleteButton = new ClickableTextureComponent(
-                    new Rectangle(scheduleBox.Right - 40, yOffset, 32, 32),
+                    new Rectangle(scheduleBox.Right - 40, yOffset + 10, 32, 32),
                     Game1.mouseCursors, new Rectangle(322, 498, 12, 12), 2f);
                 deleteButton.draw(b);
 
 
-                yOffset += 40; // 🔹 각 스케줄 간격 유지
+                yOffset += 100; // 🔹 각 스케줄 간격 유지
             }
             return false;
         }
@@ -72,10 +72,11 @@ namespace NPCSchedulers.UI
 
 
             // 🔹 개별 스케줄 삭제 버튼 클릭 감지
-            int yOffset = scheduleBox.Y + 20;
+            int yOffset = scheduleBox.Y + 60;
+            yOffset += friendshipTargetUI.Height;
             foreach (var entry in entries)
             {
-                Rectangle deleteButtonBounds = new Rectangle(scheduleBox.Right - 40, yOffset, 32, 32);
+                Rectangle deleteButtonBounds = new Rectangle(scheduleBox.Right - 40, yOffset + 10, 32, 32);
                 if (deleteButtonBounds.Contains(x, y))
                 {
                     // 🔹 삭제 요청
@@ -125,15 +126,15 @@ namespace NPCSchedulers.UI
     public class ScheduleListUI : ListUI
     {
         private List<ScheduleUI> scheduleEntries = new List<ScheduleUI>();
-        public ScheduleListUI(Vector2 position) : base(position, 700, 400)
+        public ScheduleListUI(Vector2 position) : base(position, 700, 500)
         {
-
             UpdateSchedules();
         }
 
         private void UpdateSchedules()
         {
             var entries = UIStateManager.Instance.GetCurrentNPCSchedules();
+            scheduleEntries.Clear(); // 🔹 기존 리스트 초기화
             int yOffset = 0;
             foreach (var entry in entries)
             {
@@ -148,6 +149,7 @@ namespace NPCSchedulers.UI
         public override bool Draw(SpriteBatch b)
         {
             base.Draw(b);
+            UpdateSchedules();
             // 🔹 `foreach`문 제거 → `ScheduleUI` 리스트를 그대로 렌더링
             foreach (var scheduleUI in scheduleEntries)
             {
