@@ -36,6 +36,29 @@ namespace NPCSchedulers
 
             return editedKeys;
         }
+        public static FriendshipConditionEntry GetFriendshipCondition(string npcName, string scheduleKey)
+        {
+            // 🔹 유저 데이터에서 스케줄 확인
+            Dictionary<string, NPCScheduleDataType> userData = UserScheduleData.LoadUserSchedules();
+            if (userData.ContainsKey(npcName) && userData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                string rawSchedule = userData[npcName].RawData[scheduleKey];
+                ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, rawSchedule, out FriendshipConditionEntry friendshipCondition);
+                return friendshipCondition ?? new FriendshipConditionEntry(npcName, scheduleKey, new Dictionary<string, int>());
+            }
+
+            // 🔹 원본 데이터에서 스케줄 확인
+            Dictionary<string, NPCScheduleDataType> originalData = new OriginalScheduleData().LoadOriginalSchedules();
+            if (originalData.ContainsKey(npcName) && originalData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                string rawSchedule = originalData[npcName].RawData[scheduleKey];
+                ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, rawSchedule, out FriendshipConditionEntry friendshipCondition);
+                return friendshipCondition ?? new FriendshipConditionEntry(npcName, scheduleKey, new Dictionary<string, int>());
+            }
+
+            // 🔹 우정 조건이 없으면 기본값 반환
+            return new FriendshipConditionEntry(npcName, scheduleKey, new Dictionary<string, int>());
+        }
 
         /// <summary>
         /// 특정 NPC의 최종 적용된 스케줄을 반환 (유저 데이터가 있으면 우선)
@@ -124,11 +147,11 @@ namespace NPCSchedulers
 
                 if (elements.Length < 5) continue;
 
-                int time = int.Parse(elements[0]);
+                int.TryParse(elements[0], out int time);
                 string location = elements[1];
-                int x = int.Parse(elements[2]);
-                int y = int.Parse(elements[3]);
-                int direction = int.Parse(elements[4]);
+                int.TryParse(elements[2], out int x);
+                int.TryParse(elements[3], out int y);
+                int.TryParse(elements[4], out int direction);
                 string action = elements.Length > 5 ? elements[5] : "None";
 
                 entries.Add(new ScheduleEntry(key, time, location, x, y, direction, action, "None"));
@@ -152,6 +175,11 @@ namespace NPCSchedulers
         private static string FormatScheduleEntry(ScheduleEntry entry)
         {
             return $"{entry.Time} {entry.Location} {entry.X} {entry.Y} {entry.Direction} {entry.Action}";
+        }
+
+        public static void DeleteScheduleEntry(string npcName, string scheduleKey, ScheduleEntry entry)
+        {
+
         }
     }
 }

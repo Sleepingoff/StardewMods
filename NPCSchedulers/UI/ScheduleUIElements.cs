@@ -12,18 +12,16 @@ namespace NPCSchedulers.UI
     {
         public readonly TextBox textBox;
         private readonly ClickableComponent clickableArea;
-        private string _value;
 
         public string _label;
-        public OptionsTextBox(string label, ref string value, int width = 200) : base("", new Rectangle(0, 0, width, 50), 0)
+        public OptionsTextBox(string label, string value, int width = 200) : base("", new Rectangle(0, 0, width, 50), 0)
         {
-            this._value = value;
             this._label = label;
             textBox = new TextBox(Game1.content.Load<Texture2D>("LooseSprites\\textBox"), null, Game1.smallFont, Color.Black)
             {
                 Width = width,
                 Height = 50,
-                Text = _value
+                Text = value
             };
 
             clickableArea = new ClickableComponent(new Rectangle(0, 0, width, 50), label);
@@ -51,7 +49,6 @@ namespace NPCSchedulers.UI
             Vector2 labelPosition = new Vector2(textBox.X - 200, textBox.Y);
             b.DrawString(Game1.smallFont, _label, labelPosition, Game1.textColor);
             textBox.Draw(b, false);
-            _value = textBox.Text;
         }
 
         public bool ContainsPoint(int x, int y)
@@ -199,11 +196,8 @@ namespace NPCSchedulers.UI
 
         public override void receiveLeftClick(int x, int y)
         {
-            if (bounds.Contains(x, y))
-            {
-                selectedIndex = (selectedIndex + 1) % npcs.Count;
-                Game1.playSound("shwip");
-            }
+            selectedIndex = (selectedIndex + 1) % npcs.Count;
+            Game1.playSound("shwip");
         }
 
         public override void draw(SpriteBatch b, int slotX, int slotY, IClickableMenu clickableMenu = null)

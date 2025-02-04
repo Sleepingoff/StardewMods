@@ -9,54 +9,33 @@ using System.Collections.Generic;
 
 namespace NPCSchedulers.UI
 {
-    public class ScheduleUI
+
+    public class ScheduleEditUI : UIBase
     {
-        private NPC currentNPC;
-        private List<OptionsElement> entryBounds;
-        // 🔹 입력 필드 및 드롭다운 추가
-        private static string timeValue = ""; // 입력값 저장
-        private static string xValue = "";
-        private static string yValue = "";
-        private static string talkValue = "";
-
-        private static List<string> locationOptions = new List<string>();
-        private static Dictionary<string, List<string>> actionOptions = new Dictionary<string, List<string>>();
-
-        private static ScheduleEntry currentScheduleEntry; // scheduleEntry를 private 필드로 유지
-
+        private Vector2 position;
+        private ScheduleEntry entry;
+        private string scheduleKey;
         private ClickableTextureComponent saveButton;
         private ClickableTextureComponent cancelButton;
 
-        private string targetSeason = null;
-        private int targetDate = 1;
-
-        private List<ScheduleEntry> scheduleEntries;
-        private FriendshipConditionEntry friendshipConditionEntry;
-
-        public ScheduleUI(NPC npc, Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> targetData, ScheduleEntry entry, string targetSeason, int targetDate)
+        private OptionsSlider locationSlider;
+        private OptionsSlider directionSlider;
+        private OptionsSlider actionSlider;
+        private OptionsTextBox timeTextBox;
+        private OptionsTextBox xTextBox;
+        private OptionsTextBox yTextBox;
+        private OptionsTextBox talkTextBox;
+        private static List<string> locationOptions = new List<string>();
+        private static Dictionary<string, List<string>> actionOptions = new Dictionary<string, List<string>>();
+        public ScheduleEditUI(Vector2 position, string scheduleKey, ScheduleEntry entry)
         {
-            this.targetSeason = targetSeason;
-            this.targetDate = targetDate;
-            currentNPC = npc;
-            currentScheduleEntry = entry;
-            timeValue = entry.Time.ToString();
-            xValue = entry.X.ToString();
-            yValue = entry.Y.ToString();
-            talkValue = entry.Talk;
-            friendshipConditionEntry = targetData[entry.Key.Split('/')[0]].Item1;
-            scheduleEntries = targetData[entry.Key.Split('/')[0]].Item2;
-            entryBounds = GenerateScheduleOptions(ModEntry.Instance.Helper.Translation);
+            this.position = position;
+            this.scheduleKey = scheduleKey;
+            this.entry = entry;
+            GenerateScheduleOptions(ModEntry.Instance.Helper.Translation);
 
-            saveButton = new ClickableTextureComponent(
-              new Rectangle(0, 0, 80, 40),
-              Game1.mouseCursors, new Rectangle(128, 256, 64, 64), 1f
-            );
-
-            cancelButton = new ClickableTextureComponent(
-                new Rectangle(0, 0, 80, 40),
-                Game1.mouseCursors, new Rectangle(128 + 64, 256, 64, 64), 1f
-            );
         }
+
 
         public static void InitializeOptions()
         {
@@ -100,57 +79,35 @@ namespace NPCSchedulers.UI
                 }
             }
         }
-        public static string GetDayOfWeek(int day)
-        {
-            if (day < 1 || day > 28)
-                return "Invalid day"; // 1~28 범위를 벗어난 경우
-
-            string[] days = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
-            return days[(day - 1) % 7]; // 1일부터 시작하므로 (day - 1)
-        }
-
-        public static Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> LoadNPCSchedules(NPC npc, string season = "Spring", int date = -1)
-        {
-
-            if (date == -1)
-            {
-                date = Game1.dayOfMonth;
-            }
-
-            string dayOfWeek = GetDayOfWeek(date);
-            Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> scheduleEntries = ScheduleManager.GetNPCSchedule(npc, season, date, dayOfWeek);
-
-            return scheduleEntries;
-        }
-        private OptionsSlider locationSlider;
-        private OptionsSlider directionSlider;
-        private OptionsSlider actionSlider;
-        private OptionsTextBox timeTextBox;
-        private OptionsTextBox xTextBox;
-        private OptionsTextBox yTextBox;
-        private OptionsTextBox talkTextBox;
         private List<OptionsElement> GenerateScheduleOptions(ITranslationHelper i18n)
         {
+            string currentNPC = UIStateManager.Instance.CurrentNPC.Name;
 
-            if (currentScheduleEntry == null) return new List<OptionsElement>();
+            if (entry == null) return new List<OptionsElement>();
             //locationOptions
             locationSlider = new OptionsSlider(i18n.Get("ScheduleUI.Location"), 0);
             locationSlider.bounds.Width = 400;
-            locationSlider.value = (int)(locationOptions.IndexOf(currentScheduleEntry.Location) / (float)locationOptions.Count * 99);
+            locationSlider.value = (int)(locationOptions.IndexOf(entry.Location) / (float)locationOptions.Count * 99);
 
             directionSlider = new OptionsSlider(i18n.Get("ScheduleUI.Direction"), 0);
-            directionSlider.value = (int)(currentScheduleEntry.Direction / 4f * 99);
+            directionSlider.value = (int)(entry.Direction / 4f * 99);
 
 
             actionSlider = new OptionsSlider(i18n.Get("ScheduleUI.Action"), 0);
             actionSlider.bounds.Width = 400;
-            //actionOptions[currentNPC.Name]
-            actionSlider.value = (int)(actionOptions[currentNPC.Name].IndexOf(currentScheduleEntry.Action) / (float)actionOptions[currentNPC.Name].Count * 99);
 
-            timeTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Time"), ref timeValue);
-            xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate"), ref xValue);
-            yTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.YCoordinate"), ref yValue);
-            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk"), ref talkValue, 400);
+            actionSlider.value = (int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99);
+
+            timeTextBox = new OptionsTextBox("Time", entry.Time.ToString());
+            xTextBox = new OptionsTextBox("X", entry.X.ToString());
+            yTextBox = new OptionsTextBox("Y", entry.Y.ToString());
+            talkTextBox = new OptionsTextBox("Action", entry.Action);
+
+            // 🔹 저장 및 취소 버튼
+            saveButton = new ClickableTextureComponent(new Rectangle((int)position.X + 120, (int)position.Y + 100, 32, 32),
+                Game1.mouseCursors, new Rectangle(128, 256, 64, 64), 1f);
+            cancelButton = new ClickableTextureComponent(new Rectangle((int)position.X, (int)position.Y + 100, 32, 32),
+                Game1.mouseCursors, new Rectangle(192, 256, 64, 64), 1f);
 
             return new List<OptionsElement> {
                 timeTextBox,
@@ -162,180 +119,117 @@ namespace NPCSchedulers.UI
                talkTextBox
             };
         }
-        public void Draw(SpriteBatch b, Vector2 position)
+        public override bool Draw(SpriteBatch b)
         {
-            int offsetX = (int)position.X;
-            int offsetY = (int)position.Y;
-            foreach (var element in entryBounds)
-            {
-                if (element is OptionsTextBox optionsTextBox)
-                {
-                    b.DrawString(Game1.smallFont, optionsTextBox.label, new Vector2(offsetX, offsetY - 15), Color.Black);
-                    element.draw(b, offsetX, offsetY);
-                    element.bounds.X = offsetX + 200;
-                    element.bounds.Y = offsetY;
-                    element.bounds.Width = 400;
-                }
-                else if (element is OptionsSlider slider)
-                {
-                    slider.bounds.Y = offsetY;
-                    slider.bounds.X = offsetX + 200;
-                }
-                offsetY += 60;
-            }
+            if (!IsVisible) return true;
+            string currentNPC = UIStateManager.Instance.CurrentNPC.Name;
 
+            // 🔹 배경 박스
+            Rectangle editBox = new Rectangle((int)position.X, (int)position.Y, 400, 260);
+            b.Draw(Game1.staminaRect, editBox, new Rectangle(0, 0, 1, 1), Color.DarkSlateGray * 0.8f, 0f, Vector2.Zero, SpriteEffects.None, 0.8f);
+            DrawBorder(b, editBox, 2, Color.White);
 
-            Vector2 labelOffset = new Vector2(actionSlider.bounds.X, actionSlider.bounds.Bottom);
-            actionSlider.labelOffset = new Vector2(-actionSlider.bounds.Width - 200, 0);
-            int index = (int)Math.Round((actionSlider.value / 99.0f) * actionOptions[currentNPC.Name].Count);
-            index = Math.Clamp(index, 0, actionOptions[currentNPC.Name].Count - 1); // 🔥 범위 제한
-            b.DrawString(Game1.smallFont, actionOptions[currentNPC.Name][index], labelOffset, Color.Black);
-            actionSlider.draw(b, 0, 0);
+            int offsetX = editBox.X + 10;
+            int offsetY = editBox.Y + 10;
 
-            labelOffset = new Vector2(directionSlider.bounds.X, directionSlider.bounds.Bottom);
-            directionSlider.labelOffset = new Vector2(-directionSlider.bounds.Width - 200, 0);
-            index = (int)Math.Round((directionSlider.value / 99.0f) * 4);
-            index = Math.Clamp(index, 0, 3); // 🔥 범위 제한
-            b.DrawString(Game1.smallFont, index.ToString(), labelOffset, Color.Black);
-            directionSlider.draw(b, 0, 0);
+            // 🔹 입력 필드 직접 배치 (위치 계산 반영)
+            b.DrawString(Game1.smallFont, "Time:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            timeTextBox.draw(b, offsetX, offsetY);
+            timeTextBox.bounds = new Rectangle(offsetX + 200, offsetY, 400, timeTextBox.bounds.Height);
+            offsetY += 50;
 
-            labelOffset = new Vector2(locationSlider.bounds.X, locationSlider.bounds.Bottom);
-            locationSlider.labelOffset = new Vector2(-locationSlider.bounds.Width - 200, 0);
-            index = (int)Math.Round((locationSlider.value / 99.0f) * locationOptions.Count);
-            index = Math.Clamp(index, 0, locationOptions.Count - 1); // 🔥 범위 제한
-            b.DrawString(Game1.smallFont, locationOptions[index], labelOffset, Color.Black);
-            locationSlider.draw(b, 0, 0);
+            // 🔹 기존 `foreach`에서 하던 위치 계산을 그대로 적용
+            b.DrawString(Game1.smallFont, "Location:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            locationSlider.bounds = new Rectangle(offsetX + 200, offsetY, locationSlider.bounds.Width, locationSlider.bounds.Height);
+            locationSlider.draw(b, offsetX + 200, offsetY);
+            offsetY += 50;
 
-            Vector2 buttonPosition = new Vector2(position.X, position.Y + 350);
-            DrawEditUI(b, buttonPosition);
+            b.DrawString(Game1.smallFont, "X:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            xTextBox.draw(b, offsetX, offsetY);
+            xTextBox.bounds = new Rectangle(offsetX + 200, offsetY, 400, xTextBox.bounds.Height);
+            offsetY += 50;
 
-        }
+            b.DrawString(Game1.smallFont, "Y:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            yTextBox.draw(b, offsetX, offsetY);
+            yTextBox.bounds = new Rectangle(offsetX + 200, offsetY, 400, yTextBox.bounds.Height);
+            offsetY += 50;
 
-        private void DrawEditUI(SpriteBatch b, Vector2 position)
-        {
-            int editX = (int)position.X + 500;
-            int editY = (int)position.Y + 100;
+            b.DrawString(Game1.smallFont, "Direction:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            directionSlider.bounds = new Rectangle(offsetX + 200, offsetY, directionSlider.bounds.Width, directionSlider.bounds.Height);
+            directionSlider.draw(b, offsetX + 200, offsetY);
+            offsetY += 50;
 
-            // 🔹 UI 요소 배치
-            saveButton.bounds.X = editX + 64 + 10;
-            saveButton.bounds.Y = editY;
-            cancelButton.bounds.X = editX;
-            cancelButton.bounds.Y = editY;
+            b.DrawString(Game1.smallFont, "Action:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            actionSlider.bounds = new Rectangle(offsetX + 200, offsetY, actionSlider.bounds.Width, actionSlider.bounds.Height);
+            actionSlider.draw(b, offsetX + 200, offsetY);
+            offsetY += 50;
+
+            b.DrawString(Game1.smallFont, "Talk:", new Vector2(offsetX, offsetY - 15), Color.Black);
+            talkTextBox.bounds = new Rectangle(offsetX + 200, offsetY, 400, talkTextBox.bounds.Height);
+            talkTextBox.draw(b, offsetX + 200, offsetY);
+
+            // 🔹 저장 및 취소 버튼 유지
+            saveButton.bounds = new Rectangle(editBox.X + editBox.Width - 80, editBox.Y + editBox.Height - 40, saveButton.bounds.Width, saveButton.bounds.Height);
+            cancelButton.bounds = new Rectangle(editBox.X + editBox.Width - 140, editBox.Y + editBox.Height - 40, cancelButton.bounds.Width, cancelButton.bounds.Height);
             saveButton.draw(b);
             cancelButton.draw(b);
-        }
-        public ScheduleEntry GetScheduleEntry()
-        {
-            // 🔥 기존 시간 값 저장
-            int oldTime = currentScheduleEntry.Time;
 
-            // 🔥 새로운 시간 입력값 가져오기
-            int.TryParse(timeTextBox.textBox.Text, out int newTime);
-
-            // 🔥 기존 시간과 입력된 시간이 다르면 새로운 스케줄 추가
-            bool isTimeChanged = oldTime != newTime;
-
-            int index = (int)Math.Round((locationSlider.value / 99.0f) * locationOptions.Count);
-            string location = locationOptions[index];
-            int.TryParse(xTextBox.textBox.Text, out int x);
-            int.TryParse(yTextBox.textBox.Text, out int y);
-            int direction = directionSlider.value;
-            index = (int)Math.Round((actionSlider.value / 99.0f) * actionOptions[currentNPC.Name].Count);
-            string action = actionOptions[currentNPC.Name][index];
-            string talk = talkTextBox.textBox.Text;
-
-            if (isTimeChanged)
-            {
-                // 🔥 시간이 변경되었다면 새로운 스케줄 생성
-                string newKey = $"{targetSeason.ToLower()}_{targetDate}/{newTime * 999}";
-
-                return new ScheduleEntry(newKey, newTime, location, x, y, direction, action, talk);
-            }
-            else
-            {
-                // 🔥 시간이 변경되지 않았다면 기존 스케줄 업데이트
-                currentScheduleEntry.SetTime(newTime);
-                currentScheduleEntry.SetLocation(location);
-                currentScheduleEntry.SetCoordinates(x, y);
-                currentScheduleEntry.SetDirection(direction);
-                currentScheduleEntry.SetAction(action);
-                currentScheduleEntry.SetTalk(talk);
-
-                return currentScheduleEntry;
-            }
+            return false;
         }
 
-        public void UpdateFriendshipCondition(string selectedNPC, int newHeartLevel)
+
+        public override void LeftClick(int x, int y)
         {
-            if (friendshipConditionEntry != null)
-            {
+            if (!IsVisible) return;
 
-                friendshipConditionEntry.SetCondition(selectedNPC, newHeartLevel);
-
-            }
-        }
-
-        public bool HandleClick(int x, int y)
-        {
-            foreach (var element in entryBounds)
-            {
-                if (element.bounds.Contains(x, y))
-                {
-                    element.receiveLeftClick(x, y);
-                }
-
-            }
-
+            // 🔹 저장 버튼 클릭 → 변경사항 반영
             if (saveButton.containsPoint(x, y))
             {
-                this.SaveSchedule();
-                currentScheduleEntry = null;
-                SchedulePage.isOpenScheduleEditUI = null; // 수정 UI 닫기
-                return true;
+                ApplyChanges();
+                UIStateManager.Instance.ToggleEditMode(null);
             }
-            else if (cancelButton.containsPoint(x, y))
-            {
-                currentScheduleEntry = null;
-                SchedulePage.isOpenScheduleEditUI = null; // 수정 UI 닫기
-                return true;
-            }
-            return false;
 
+            // 🔹 취소 버튼 클릭 → 편집 모드 종료
+            if (cancelButton.containsPoint(x, y))
+            {
+                UIStateManager.Instance.ToggleEditMode(null);
+            }
         }
-        private void SaveSchedule()
+
+        private void ApplyChanges()
         {
-            if (currentScheduleEntry == null) return;
+            string currentNPC = UIStateManager.Instance.CurrentNPC.Name;
+            // 🔹 입력된 값 가져오기
+            int newTime = int.TryParse(timeTextBox.textBox.Text, out int t) ? t : entry.Time;
+            int newX = int.TryParse(xTextBox.textBox.Text, out int x) ? x : entry.X;
+            int newY = int.TryParse(yTextBox.textBox.Text, out int y) ? y : entry.Y;
 
-            ScheduleEntry scheduleEntry = GetScheduleEntry();
+            int actionIndex = Math.Clamp((int)(actionSlider.value / 99f * actionOptions[currentNPC].Count), 0, actionOptions[currentNPC].Count - 1);
+            string newAction = actionOptions[currentNPC][actionIndex];
 
-            List<ScheduleEntry> updatedScheduleList = new List<ScheduleEntry>(scheduleEntries);
-            // 🔥 기존 키가 있으면 삭제 후 추가
-            updatedScheduleList.RemoveAll(e => e.Key == scheduleEntry.Key);
-            updatedScheduleList.Add(scheduleEntry);
+            int locationIndex = Math.Clamp((int)(locationSlider.value / 99f * locationOptions.Count), 0, locationOptions.Count - 1);
+            string newLocation = locationOptions[locationIndex];
 
-            Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> newScheduleData = new Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>();
+            int directionIndex = Math.Clamp((int)(directionSlider.value / 99f * 4), 0, 3);
 
-            foreach (var entry in updatedScheduleList)
-            {
-                string scheduleKey = entry.Key;
+            string newTalk = talkTextBox.textBox.Text;
+            // 🔹 새 스케줄 엔트리 생성
+            ScheduleEntry updatedEntry = new ScheduleEntry(scheduleKey, newTime, newLocation, newX, newY, directionIndex, newAction, newTalk);
 
-                if (!newScheduleData.ContainsKey(scheduleKey))
-                {
-                    newScheduleData[scheduleKey] = (friendshipConditionEntry, new List<ScheduleEntry>());
-                }
-
-                newScheduleData[scheduleKey].Item2.Add(entry);
-            }
-
-            ScheduleManager.SaveSchedule(currentNPC.Name, targetSeason, targetDate, newScheduleData);
-            ScheduleManager.ApplyScheduleToNPC(currentNPC.Name);
-            // ✅ 저장 후 UI 업데이트
-            SchedulePage.UpdateSchedule();
-
-            // ✅ 수정 UI 닫기
-            SchedulePage.isOpenScheduleEditUI = null;
+            // 🔹 `UIStateManager`를 통해 스케줄 업데이트
+            UIStateManager.Instance.UpdateScheduleEntry(scheduleKey, updatedEntry);
         }
 
+        private void DrawBorder(SpriteBatch spriteBatch, Rectangle rectangle, int thickness, Color color)
+        {
+            Texture2D pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
+            pixel.SetData(new[] { Color.White });
 
+            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, thickness), color);
+            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y + rectangle.Height - thickness, rectangle.Width, thickness), color);
+            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, thickness, rectangle.Height), color);
+            spriteBatch.Draw(pixel, new Rectangle(rectangle.X + rectangle.Width - thickness, rectangle.Y, thickness, rectangle.Height), color);
+        }
     }
+
 }

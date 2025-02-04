@@ -45,8 +45,13 @@
 
     <!-- UI 관련 파일 -->
     <Compile Include="UI\ScheduleUIElements.cs" />
-    <Compile Include="UI\ScheduleListUI.cs" />
+    <Compile Include="UI\UIStateManager.cs" />
+    <Compile Include="UI\UIBase.cs" />
+    <Compile Include="UI\FriendshipUI.cs" />
+    <Compile Include="UI\ScheduleDateUI.cs" />
     <Compile Include="UI\ScheduleEditUI.cs" />
+    <Compile Include="UI\ScheduleUI.cs" />
+    <Compile Include="UI\SchedulePage.cs" />
 
     <!-- Mod Entry -->
     <Compile Include="ScheduleManager.cs" />
