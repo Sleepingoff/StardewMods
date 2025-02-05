@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using NPCSchedulers.DATA;
 
 namespace NPCSchedulers.Type
 {
@@ -38,6 +39,8 @@ namespace NPCSchedulers.Type
             throw new NotImplementedException();
         }
     }
-
+    public class ScheduleDataType : Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>
+    {
+    }
 
 }

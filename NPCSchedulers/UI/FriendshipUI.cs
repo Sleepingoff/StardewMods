@@ -9,12 +9,14 @@ namespace NPCSchedulers.UI
 {
     public class FriendshipUI : UIBase
     {
+        private UIStateManager uiStateManager;
         private Vector2 heartDisplayPosition;
         private OptionsSlider heartSlider;  // 🔹 기존 하트 슬라이더
         private NPC villager;     // 🔹 모든 마을 NPC 목록
         public int Height = 20;
-        public FriendshipUI(Vector2 position, string npcName, int FriendshipLevel)
+        public FriendshipUI(Vector2 position, string npcName, int FriendshipLevel, UIStateManager uiStateManager)
         {
+            this.uiStateManager = uiStateManager;
             heartDisplayPosition = new Vector2(position.X + 100, position.Y + Height);
 
             // 🔹 기존 하트 슬라이더 유지
@@ -59,7 +61,7 @@ namespace NPCSchedulers.UI
                 heartSlider.receiveLeftClick(x, y);
                 int newHeartLevel = (int)((heartSlider.value / 99.0f) * 14); // 🔥 슬라이더 값 -> 하트 값 변환
 
-                UIStateManager.Instance.SetEditedFriendshipCondition(villager.Name, newHeartLevel);
+                uiStateManager.SetFriendshipCondition(villager.Name, newHeartLevel);
             }
         }
 
@@ -91,9 +93,11 @@ namespace NPCSchedulers.UI
     public class FriendshipTargetUI : UIBase
     {
         private Vector2 position;
+        private UIStateManager uiStateManager;
         public int Height = 25;
-        public FriendshipTargetUI(Vector2 position)
+        public FriendshipTargetUI(Vector2 position, UIStateManager uiStateManager)
         {
+            this.uiStateManager = uiStateManager;
             this.position = position;
         }
 
@@ -101,8 +105,8 @@ namespace NPCSchedulers.UI
         {
             if (!IsVisible) return true;
 
-            Dictionary<string, int> conditions = UIStateManager.Instance.EditedFriendshipCondition;
-            var filteredCondition = UIStateManager.Instance.FilterSetEditedFriendshipCondition(conditions);
+            Dictionary<string, int> conditions = uiStateManager.GetFriendshipCondition();
+            var filteredCondition = FriendshipUIStateHandler.FilterData(conditions);
             int yOffset = 0;
 
             foreach (var condition in filteredCondition)
@@ -126,10 +130,12 @@ namespace NPCSchedulers.UI
     }
     public class FriendshipListUI : ListUI
     {
+        UIStateManager uiStateManager;
         List<FriendshipUI> friendshipUIs = new();
         List<string> villagers = new();
-        public FriendshipListUI(Vector2 position) : base(position, 400, 400)
+        public FriendshipListUI(Vector2 position, UIStateManager uiStateManager) : base(position, 400, 400)
         {
+            this.uiStateManager = uiStateManager;
             villagers = Utility.getAllCharacters().Where(npc => npc.IsVillager).Select(npc => npc.Name).ToList();
             UpdateFriendshipUI();
         }
@@ -137,7 +143,7 @@ namespace NPCSchedulers.UI
         public void UpdateFriendshipUI()
         {
             friendshipUIs.Clear();
-            var EditedFriendshipCondition = UIStateManager.Instance.EditedFriendshipCondition;
+            var EditedFriendshipCondition = uiStateManager.GetFriendshipCondition();
 
             int yOffset = 0;
             foreach (var npc in villagers)
@@ -149,14 +155,14 @@ namespace NPCSchedulers.UI
                     yOffset += 90;
                 }
                 var detailDisplayPosition = new Vector2(position.X, position.Y + yOffset - scrollPosition);
-                friendshipUIs.Add(new FriendshipUI(detailDisplayPosition, npc, level));
+                friendshipUIs.Add(new FriendshipUI(detailDisplayPosition, npc, level, uiStateManager));
             }
             SetMaxScrollPosition(yOffset, viewport.Height);
         }
 
         public override bool Draw(SpriteBatch b)
         {
-            NPC currentNPC = UIStateManager.Instance.CurrentNPC;
+            NPC currentNPC = uiStateManager.CurrentNPC;
             SpriteText.drawStringWithScrollCenteredAt(b, currentNPC.Name, viewport.Center.X, viewport.Top - 60);
 
             base.Draw(b);

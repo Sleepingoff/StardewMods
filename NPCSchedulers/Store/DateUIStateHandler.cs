@@ -4,7 +4,7 @@ namespace NPCSchedulers.Store
 {
     public class DateUIStateHandler : BaseUIStateHandler<(string, int)>
     {
-        private static readonly List<string> seasons = new() { "Spring", "Summer", "Fall", "Winter", "Rain", "Festival" };
+        public static readonly List<string> seasons = new() { "Spring", "Summer", "Fall", "Winter", "Rain", "Festival" };
         private string selectedSeason = "Spring";
         private int selectedDate = 1;
 
@@ -31,11 +31,19 @@ namespace NPCSchedulers.Store
 
         public override void UpdateData((string, int) data)
         {
-            var (season, date) = data;
+            var (seasonDirection, date) = data;
+
+            int direction = 0;
+            switch (seasonDirection)
+            {
+                case "next":
+                    direction = 1; break;
+                case "prev":
+                    direction = -1; break;
+                default: break;
+            }
             int currentIndex = seasons.IndexOf(selectedSeason);
-            int index = seasons.IndexOf(season);
-            int direction = index - currentIndex;
-            int nextIndex = (index + direction) % seasons.Count;
+            int nextIndex = (currentIndex + direction) % seasons.Count;
             if (nextIndex < 0) nextIndex += seasons.Count;
 
             SaveData((seasons[nextIndex], date));

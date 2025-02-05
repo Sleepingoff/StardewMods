@@ -2,14 +2,18 @@ using Microsoft.Xna.Framework;
 using StardewValley.Menus;
 namespace NPCSchedulers.DATA
 {
-
-
     public class FriendshipConditionEntry
     {
         public string ScheduleKey { get; }
         public string Target { get; }
         public Dictionary<string, int> Condition { get; set; }
 
+        /// <summary>
+        /// 상세 스케줄 생성
+        /// </summary>
+        /// <param name="currentScheduleNpcName">현재 스케줄 NPC 이름</param>
+        /// <param name="key">스케줄 키</param>
+        /// <param name="condition">key: 호감도 대상 npc 이름, value: 최소 호감도 숫자</param>
         public FriendshipConditionEntry(string currentScheduleNpcName, string key, Dictionary<string, int> condition)
         {
             Target = currentScheduleNpcName;

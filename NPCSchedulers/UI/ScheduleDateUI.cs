@@ -8,17 +8,21 @@ namespace NPCSchedulers.UI
 {
     public class ScheduleDateUI : UIBase
     {
+        private UIStateManager uiStateManager;
         private Vector2 position;
         private OptionsSlider dateSlider;
         private ClickableTextureComponent leftButton;
         private ClickableTextureComponent rightButton;
 
-        public ScheduleDateUI(Vector2 position)
+        public ScheduleDateUI(Vector2 position, UIStateManager uiStateManager)
         {
+            this.uiStateManager = uiStateManager;
             this.position = new Vector2(position.X + 600, position.Y + 150);
             // 🔹 날짜 슬라이더 초기화 (0~99 범위를 1~28 날짜로 변환)
+
+            var (_, date) = uiStateManager.GetCurrentDate();
             dateSlider = new OptionsSlider("", 0, (int)this.position.X + 300, (int)this.position.Y);
-            dateSlider.value = (UIStateManager.Instance.SelectedDate - 1) * 99 / 27;
+            dateSlider.value = (date - 1) * 99 / 27;
 
             // 🔹 계절 변경 좌우 버튼 초기화
             leftButton = new ClickableTextureComponent(
@@ -41,12 +45,12 @@ namespace NPCSchedulers.UI
 
             // 🔹 날짜 슬라이더 그리기
             dateSlider.draw(b, 0, 0);
-
+            var (season, date) = uiStateManager.GetCurrentDate();
             // 🔹 현재 선택된 날짜 텍스트 표시
-            b.DrawString(Game1.smallFont, $"{UIStateManager.Instance.SelectedDate}",
+            b.DrawString(Game1.smallFont, $"{date}",
                          new Vector2(position.X + 250, position.Y - 10), Color.Brown);
 
-            b.DrawString(Game1.smallFont, $"{UIStateManager.Instance.SelectedSeason}",
+            b.DrawString(Game1.smallFont, $"{season}",
                     new Vector2(position.X + 200, position.Y - 40), Color.Brown);
 
             return false;
@@ -68,20 +72,17 @@ namespace NPCSchedulers.UI
             else if (dateSlider.bounds.Contains(x, y))
             {
                 dateSlider.receiveLeftClick(x, y);
-                UpdateDateFromSlider();
+                UpdateSlider(0);
             }
         }
 
         private void UpdateSlider(int direction)
         {
-            UIStateManager.Instance.SetSeasonNext(direction);
+            int newDate = (int)(dateSlider.value / 99.0f * 27) + 1;
+            uiStateManager.SetCurrentDate((direction, newDate));
         }
 
-        private void UpdateDateFromSlider()
-        {
-            int newDate = (int)((dateSlider.value / 99.0f) * 27) + 1;
-            UIStateManager.Instance.SetSelectedDate(newDate);
-        }
+
     }
 
 }

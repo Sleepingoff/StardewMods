@@ -12,6 +12,8 @@ namespace NPCSchedulers.UI
     {
         private static bool isOpen = false;
         private static bool isOpenFriendshipList = false;
+
+        private static UIStateManager uiStateManager;
         private static ScheduleListUI scheduleListUI;
         private static ScheduleEditUI scheduleEditUI;
         private static ScheduleDateUI scheduleDateUI;
@@ -40,19 +42,19 @@ namespace NPCSchedulers.UI
             if (!isOpenFriendshipList) return;
             var displayPosition = UIStateManager.GetMenuPosition();
             var friendshipListUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y + 100);
-            friendshipListUI = new FriendshipListUI(friendshipListUIDisplayPosition);
+            friendshipListUI = new FriendshipListUI(friendshipListUIDisplayPosition, uiStateManager);
         }
         public static bool IsOpen => isOpen;
 
         public static void Open(NPC npc)
         {
-            UIStateManager.Instance.SetCurrentNpc(npc);
+            uiStateManager = new UIStateManager(npc.Name);
             var displayPosition = UIStateManager.GetMenuPosition();
             var scheduleListUIDisplayPosition = new Vector2(displayPosition.X + 500, displayPosition.Y + 150);
             var scheduleDateUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y);
 
-            scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition);
-            scheduleDateUI = new ScheduleDateUI(scheduleDateUIDisplayPosition); // 날짜 UI 위치
+            scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition, uiStateManager);
+            scheduleDateUI = new ScheduleDateUI(scheduleDateUIDisplayPosition, uiStateManager); // 날짜 UI 위치
             scheduleEditUI = null;
             isOpen = true;
         }
@@ -75,7 +77,7 @@ namespace NPCSchedulers.UI
             int width = Game1.activeClickableMenu.width;
             int height = Game1.activeClickableMenu.height;
 
-            NPC nPC = UIStateManager.Instance.CurrentNPC;
+            NPC nPC = uiStateManager.CurrentNPC;
 
             if (nPC == null) return true;
 
@@ -196,15 +198,6 @@ namespace NPCSchedulers.UI
             scheduleListUI?.LeftClick(x, y);
             scheduleEditUI?.LeftClick(x, y);
         }
-        public static void OpenEditUI(string scheduleKey, ScheduleEntry entry)
-        {
-            scheduleEditUI = new ScheduleEditUI(new Vector2(500, 300), scheduleKey, entry);
-        }
-
-        public static void CloseEditUI()
-        {
-            scheduleEditUI = null;
-        }
 
         // 🔹 "스케줄" 버튼 생성 및 렌더링
         public static void CreateScheduleButton(ProfileMenu menu)
@@ -240,8 +233,5 @@ namespace NPCSchedulers.UI
         {
             return scheduleButton != null && scheduleButton.bounds.Contains(x, y);
         }
-
-
-
     }
 }

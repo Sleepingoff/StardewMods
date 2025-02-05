@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using NPCSchedulers.DATA;
 using NPCSchedulers.Store;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
@@ -10,6 +11,7 @@ namespace NPCSchedulers.UI
 
     public class ScheduleUI : UIBase
     {
+        private UIStateManager uiStateManager;
         private string scheduleKey;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
         private Dictionary<string, int> friendshipConditionEntry;
@@ -17,11 +19,12 @@ namespace NPCSchedulers.UI
         private FriendshipTargetUI friendshipTargetUI;
         private Rectangle scheduleBox;
         public int Height = 80;
-        public ScheduleUI(Vector2 position, string scheduleKey, List<ScheduleEntry> entries)
+        public ScheduleUI(Vector2 position, string scheduleKey, UIStateManager uiStateManager)
         {
+            this.uiStateManager = uiStateManager;
             this.scheduleKey = scheduleKey;
-            this.entries = entries;
-            friendshipConditionEntry = UIStateManager.Instance.EditedFriendshipCondition;
+            this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
+            friendshipConditionEntry = uiStateManager.GetFriendshipCondition();
             // 🔹 스케줄 박스 크기 설정
             scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
             friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y));
@@ -34,7 +37,16 @@ namespace NPCSchedulers.UI
 
             Vector2 titleDisplayPosition = new Vector2(scheduleBox.X + 10, scheduleBox.Y);
             // 🔹 스케줄 키 표시
-            Color keyColor = UIStateManager.Instance.EditedScheduleKey == scheduleKey ? Color.Blue : Color.SandyBrown;
+            Color keyColor = Color.SandyBrown;
+
+            foreach (var key in uiStateManager.GetEditedScheduleKeyList())
+            {
+                if (key == scheduleKey)
+                {
+                    keyColor = Color.Blue;
+                    break;
+                }
+            }
             SpriteText.drawString(b, $"{scheduleKey}", (int)titleDisplayPosition.X, (int)titleDisplayPosition.Y, layerDepth: 0.1f, color: keyColor);
 
             int yOffset = scheduleBox.Y + 60;
@@ -80,7 +92,7 @@ namespace NPCSchedulers.UI
                 if (deleteButtonBounds.Contains(x, y))
                 {
                     // 🔹 삭제 요청
-                    UIStateManager.Instance.DeleteScheduleEntry(scheduleKey, entry);
+                    uiStateManager.DeleteScheduleEntry(scheduleKey, entry);
                     return;
                 }
                 yOffset += scheduleBox.Height;
@@ -125,20 +137,23 @@ namespace NPCSchedulers.UI
 
     public class ScheduleListUI : ListUI
     {
+        private UIStateManager uiStateManager;
         private List<ScheduleUI> scheduleEntries = new List<ScheduleUI>();
-        public ScheduleListUI(Vector2 position) : base(position, 700, 500)
+        public ScheduleListUI(Vector2 position, UIStateManager uiStateManager) : base(position, 700, 500)
         {
+            this.uiStateManager = uiStateManager;
             UpdateSchedules();
         }
 
         private void UpdateSchedules()
         {
-            var entries = UIStateManager.Instance.GetCurrentNPCSchedules();
+            var entries = uiStateManager.GetSchedule();
             scheduleEntries.Clear(); // 🔹 기존 리스트 초기화
             int yOffset = 0;
             foreach (var entry in entries)
             {
-                var scheduleUi = new ScheduleUI(new Vector2(position.X, position.Y + yOffset - scrollPosition), entry.Key, entry.Value.Item2);
+                var scheduleUIDisplayPosition = new Vector2(position.X, position.Y + yOffset - scrollPosition);
+                var scheduleUi = new ScheduleUI(scheduleUIDisplayPosition, entry.Key, uiStateManager);
                 scheduleEntries.Add(scheduleUi);
                 yOffset += scheduleUi.Height;
             }

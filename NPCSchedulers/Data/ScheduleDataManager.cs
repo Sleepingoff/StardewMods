@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using NPCSchedulers.DATA;
+using NPCSchedulers.Type;
 
 namespace NPCSchedulers
 {
@@ -36,6 +36,10 @@ namespace NPCSchedulers
 
             return editedKeys;
         }
+
+        /// <summary>
+        /// 해당하는 스케줄키의 호감도 컨디션 반환
+        /// </summary>
         public static FriendshipConditionEntry GetFriendshipCondition(string npcName, string scheduleKey)
         {
             // 🔹 유저 데이터에서 스케줄 확인
@@ -63,9 +67,9 @@ namespace NPCSchedulers
         /// <summary>
         /// 특정 NPC의 최종 적용된 스케줄을 반환 (유저 데이터가 있으면 우선)
         /// </summary>
-        public static Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> GetFinalSchedule(string npcName, string season, int day, string dayOfWeek)
+        public static ScheduleDataType GetFinalSchedule(string npcName, string season, int day)
         {
-            Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> finalSchedule = new();
+            ScheduleDataType finalSchedule = new();
             Dictionary<string, NPCScheduleDataType> originalData = originalSchedule.LoadOriginalSchedules();
             Dictionary<string, NPCScheduleDataType> userRawData = UserScheduleData.LoadUserSchedules();
 

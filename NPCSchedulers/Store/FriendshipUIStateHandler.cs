@@ -63,7 +63,7 @@ namespace NPCSchedulers.Store
                 friendshipConditions.Remove(npc);
             }
         }
-        public Dictionary<string, int> FilterData(Dictionary<string, int> friendshipCondition)
+        public static Dictionary<string, int> FilterData(Dictionary<string, int> friendshipCondition)
         {
             Dictionary<string, int> newFriendshipConditionEntry = friendshipCondition;
             var target = newFriendshipConditionEntry.Where(value => value.Value != 0);
