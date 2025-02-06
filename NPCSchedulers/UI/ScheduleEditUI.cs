@@ -221,7 +221,6 @@ namespace NPCSchedulers.UI
             // 🔹 취소 버튼 클릭 → 편집 모드 종료
             if (cancelButton.containsPoint(x, y))
             {
-
                 uiStateManager.ToggleEditMode(null);
             }
         }

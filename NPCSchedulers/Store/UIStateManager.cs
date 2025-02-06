@@ -198,12 +198,20 @@ namespace NPCSchedulers.Store
         {
             ScheduleKey = scheduleKey;
             List<ScheduleEntry> scheduleEntries = GetScheduleEntries(scheduleKey);
-            bool isIncludes = scheduleEntries.Contains(newEntry);
-            if (!isIncludes)
+            bool isIncludesSameTime = scheduleEntries.Any(entry => entry.Time == newEntry.Time);
+
+            //v0.0.2 + 동시간대 기존 다른 스케줄을 지우기
+            if (isIncludesSameTime)
             {
-                scheduleEntries.Add(newEntry);
-                scheduleEntries.Sort((a, b) => a.Time.CompareTo(b.Time));
+                var sameScheduleEntry = scheduleEntries.Where(entry => entry.Time == newEntry.Time);
+                foreach (var entry in sameScheduleEntry)
+                {
+                    scheduleEntries.Remove(entry);
+                }
             }
+            //스케줄 추가 및 시간 순 정렬
+            scheduleEntries.Add(newEntry);
+            scheduleEntries.Sort((a, b) => a.Time.CompareTo(b.Time));
             SetScheduleDataByList(scheduleEntries);
         }
         public void SetScheduleDataByList(List<ScheduleEntry> newEntries)
@@ -211,7 +219,7 @@ namespace NPCSchedulers.Store
             var friendship = GetFriendshipCondition();
             var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
             ScheduleData[ScheduleKey] = (friendshipEntry, newEntries);
-            InitScheduleData(); Console.WriteLine("state");
+            InitScheduleData();
             ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, friendshipEntry, newEntries);
         }
 

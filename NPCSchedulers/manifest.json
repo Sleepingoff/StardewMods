@@ -6,7 +6,9 @@
     "UniqueID": "slO.NPCSchedulers",
     "EntryDll": "NPCSchedulers.dll",
     "MinimumApiVersion": "3.18.0",
-    "UpdateKeys": [],
+    "UpdateKeys": [
+        "Nexus:31494"
+    ],
     "Dependencies": [],
     "EnableHarmony": true
 }

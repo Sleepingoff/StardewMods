@@ -61,7 +61,7 @@ namespace NPCSchedulers.UI
         }
         public override void LeftHeld(int x, int y)
         {
-            if (dateSlider.bounds.Contains(x, y)) dateSlider.leftClickHeld(x, y);
+            if (dateSlider.bounds.Contains(x, y)) { dateSlider.leftClickHeld(x, y); UpdateSlider(0); }
         }
         public override void LeftClick(int x, int y)
         {

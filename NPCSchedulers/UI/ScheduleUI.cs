@@ -17,7 +17,6 @@ namespace NPCSchedulers.UI
         private static ScheduleEditUI scheduleEditUI;
         private string scheduleKey;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
-        private Dictionary<string, int> friendshipConditionEntry = new();
 
         private FriendshipTargetUI friendshipTargetUI;
         private Rectangle scheduleBox;
@@ -29,7 +28,7 @@ namespace NPCSchedulers.UI
             this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
             // 🔹 스케줄 박스 크기 설정
             scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
-            friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y), uiStateManager);
+            friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y + 60), uiStateManager);
             Height = entries.Count * Height + friendshipTargetUI.Height + 200;
         }
 
@@ -130,7 +129,7 @@ namespace NPCSchedulers.UI
                     }
 
                 }
-                yOffset += scheduleBox.Height;
+                yOffset += 100;
 
             }
 

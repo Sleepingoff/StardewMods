@@ -115,6 +115,7 @@ namespace NPCSchedulers
             }
             else if (season == "Festival")
             {
+                //todo: festival에 속한 키들 가져오기
                 List<string> festivalKeys = new List<string>
         {
             $"{ScheduleType.ScheduleKeyType.Normal.FestivalDay.Replace("{day}", day.ToString())}",  // "festival_{day}"
@@ -204,7 +205,7 @@ namespace NPCSchedulers
             {
                 UserScheduleDataType userNpcData = userRawData[npcName];
 
-                foreach (string userKey in userNpcData.RawData.Keys) // 🔥 유저가 추가한 키 목록을 직접 확인
+                foreach (string userKey in userNpcData.RawData.Keys) // 🔥v0.0.1 유저가 추가한 키 목록을 직접 확인
                 {
                     if (!finalSchedule.ContainsKey(userKey)) // 🔹 중복 추가 방지
                     {
@@ -248,7 +249,7 @@ namespace NPCSchedulers
             string formattedFriendshipCondition = FormatFriendshipEntry(friendshipCondition);
             string newScheduleEntry = formattedFriendshipCondition + formattedSchedule;
 
-            // ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
+            //ㅍ0.0.1 ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
             if (formattedSchedule.Length == 0)
             {
                 userSchedules[npcName].RawData.Remove(key);
@@ -374,7 +375,17 @@ namespace NPCSchedulers
         /// </summary>
         private static string FormatScheduleEntry(ScheduleEntry entry)
         {
-            return $"{entry.Time} {entry.Location} {entry.X} {entry.Y} {entry.Direction} {(entry.Action == "None" ? "" : entry.Action)} {(entry.Talk == "None" ? "" : entry.Talk)}";
+            string scheduleEntry = $"{entry.Time} {entry.Location} {entry.X} {entry.Y} {entry.Direction}";
+            //v0.0.2 + None이거나 빈문자열일 경우 예외처리
+            if (entry.Action != "None" || entry.Action != "")
+            {
+                scheduleEntry += " " + entry.Action.TrimStart(' ');
+            }
+            if (entry.Talk != "None" || entry.Talk != "")
+            {
+                scheduleEntry += " \"" + entry.Talk.TrimStart(' ') + "\"";
+            }
+            return scheduleEntry;
         }
         public static void ApplyScheduleToNPC(string npcName)
         {
@@ -389,7 +400,8 @@ namespace NPCSchedulers
             foreach (string key in scheduleKeys)
             {
                 string todayKey = key;
-                if (!schedules.ContainsKey(todayKey)) continue;
+                //v0.0.2 + 오늘 스케줄과 같은 키만 수정
+                if (!schedules.ContainsKey(todayKey) && todayKey == npc.ScheduleKey) continue;
 
                 var (condition, scheduleList) = schedules[todayKey];
 
@@ -412,9 +424,11 @@ namespace NPCSchedulers
 
                     // 🔹 기존 키를 제거하고 다시 추가
                     if (npc.Schedule.ContainsKey(entry.Time))
-                        npc.Schedule.Remove(entry.Time);
-
+                    {
+                        npc.Schedule.Clear();
+                    }
                     npc.Schedule.Add(entry.Time, pathDescription);
+                    npc.TryLoadSchedule();
                 }
             }
             Game1.addHUDMessage(new HUDMessage($"{npcName}의 스케줄이 적용되었습니다!", 2));

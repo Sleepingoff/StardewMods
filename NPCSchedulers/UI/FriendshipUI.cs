@@ -55,18 +55,13 @@ namespace NPCSchedulers.UI
         }
         public override void LeftHeld(int x, int y)
         {
-            heartSlider.leftClickHeld(x, y);
-            // if (heartSlider.bounds.Contains(x, y))
-            // {
-            //     int prevValue = heartSlider.value;  // 기존 값 저장
-            //     int sliderMinX = heartSlider.bounds.X;
-            //     int sliderMaxX = heartSlider.bounds.X + heartSlider.bounds.Width;
+            if (heartSlider.bounds.Contains(x, y))
+            {
+                heartSlider.leftClickHeld(x, y);
+                int newHeartLevel = (int)((heartSlider.value / 99.0f) * 14); // 🔥 슬라이더 값 -> 하트 값 변환
 
-            //     // 🔹 마우스 위치를 기반으로 슬라이더 값 조정
-            //     float ratio = (float)(x - sliderMinX) / (sliderMaxX - sliderMinX);
-            //     heartSlider.value = MathHelper.Clamp((int)(ratio * 99), 0, 99);
-            //     Console.WriteLine(heartSlider.value);
-            // }
+                uiStateManager.SetFriendshipCondition(villager.Name, newHeartLevel);
+            }
         }
         public override void LeftClick(int x, int y)
         {
