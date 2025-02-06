@@ -184,7 +184,7 @@ namespace NPCSchedulers.Store
             ScheduleEntry initData = data;
             if (initData == null)
             {
-                initData = new ScheduleEntry(scheduleDetailKey, 610, "Town", 0, 0, 2, "None", "None");
+                initData = new ScheduleEntry(scheduleDetailKey, 610, "Town", 0, 0, 2, null, null);
             }
 
             return initData;

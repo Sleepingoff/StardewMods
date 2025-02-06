@@ -68,12 +68,6 @@ namespace NPCSchedulers.UI
                     {
                         string action = entry.endOfRouteBehavior;
 
-                        // 🔥 Null 또는 빈 문자열일 경우 "None"으로 처리
-                        if (string.IsNullOrEmpty(action))
-                        {
-                            action = "None";
-                        }
-
                         // 🔥 중복 방지 후 추가
                         if (!actionOptions[npc.Name].Contains(action))
                         {
@@ -249,16 +243,6 @@ namespace NPCSchedulers.UI
             uiStateManager.SetScheduleDataByEntry(updatedEntry, key);
         }
 
-        private void DrawBorder(SpriteBatch spriteBatch, Rectangle rectangle, int thickness, Color color)
-        {
-            Texture2D pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
-            pixel.SetData(new[] { Color.White });
-
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, thickness), color);
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y + rectangle.Height - thickness, rectangle.Width, thickness), color);
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, thickness, rectangle.Height), color);
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X + rectangle.Width - thickness, rectangle.Y, thickness, rectangle.Height), color);
-        }
     }
 
 

@@ -247,9 +247,10 @@ namespace NPCSchedulers
             var newCondition = FriendshipUIStateHandler.FilterData(friendshipCondition.Condition);
             friendshipCondition.Condition = newCondition;
             string formattedFriendshipCondition = FormatFriendshipEntry(friendshipCondition);
+
             string newScheduleEntry = formattedFriendshipCondition + formattedSchedule;
 
-            //ㅍ0.0.1 ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
+            //v0.0.1 ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
             if (formattedSchedule.Length == 0)
             {
                 userSchedules[npcName].RawData.Remove(key);
@@ -309,8 +310,8 @@ namespace NPCSchedulers
                 int.TryParse(elements[2], out int x);
                 int.TryParse(elements[3], out int y);
                 int.TryParse(elements[4], out int direction);
-                string action = "None";
-                string talk = "None";
+                string action = null;
+                string talk = null;
 
                 // 🔹 5번째 또는 6번째 요소가 큰따옴표(`"`)로 시작하면 Talk 스케줄로 분류
                 if (elements.Length > 5 && elements[5].StartsWith("\""))
@@ -326,12 +327,12 @@ namespace NPCSchedulers
                     }
                     if (string.IsNullOrWhiteSpace(talk))
                     {
-                        talk = "None";
+                        talk = null;
                     }
                 }
                 else if (elements.Length > 5)
                 {
-                    action = elements[5] ?? "None"; // 🔹 일반 액션 저장
+                    action = elements[5]; // 🔹 일반 액션 저장
                 }
                 entries.Add(new ScheduleEntry(key + "/" + i, time, location, x, y, direction, action, talk));
             }
@@ -376,12 +377,12 @@ namespace NPCSchedulers
         private static string FormatScheduleEntry(ScheduleEntry entry)
         {
             string scheduleEntry = $"{entry.Time} {entry.Location} {entry.X} {entry.Y} {entry.Direction}";
-            //v0.0.2 + None이거나 빈문자열일 경우 예외처리
-            if (entry.Action != "None" || entry.Action != "")
+            //v0.0.2 + null이거나 빈문자열일 경우 예외처리
+            if (entry.Action != null || entry.Action != "")
             {
                 scheduleEntry += " " + entry.Action.TrimStart(' ');
             }
-            if (entry.Talk != "None" || entry.Talk != "")
+            if (entry.Talk != null || entry.Talk != "")
             {
                 scheduleEntry += " \"" + entry.Talk.TrimStart(' ') + "\"";
             }
@@ -416,8 +417,8 @@ namespace NPCSchedulers
                     var pathDescription = new SchedulePathDescription(
                         route,                        // 이동 경로
                         entry.Direction,              // 방향
-                        entry.Action == "None" ? "" : entry.Action,       // 도착 후 행동 (null 방지)
-                        entry.Talk == "None" ? "" : entry.Talk,             // 도착 후 대사 (null 방지)
+                        entry.Action ?? entry.Action,       // 도착 후 행동 (null 방지)
+                        entry.Talk ?? entry.Talk,             // 도착 후 대사 (null 방지)
                         entry.Location,               // 도착할 위치
                         new Point(entry.X, entry.Y)   // 목표 타일
                     );
