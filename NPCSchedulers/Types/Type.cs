@@ -5,7 +5,7 @@ namespace NPCSchedulers.Type
 {
     public abstract class AbstractScheduleDataType<T> where T : AbstractScheduleDataType<T>, new()
     {
-        public Dictionary<string, T> Data { get; private set; }
+        public Dictionary<string, T> Data { get; protected set; }
 
         protected AbstractScheduleDataType()
         {
@@ -24,23 +24,70 @@ namespace NPCSchedulers.Type
             return instance;
         }
 
-        public string ToJson()
+        public virtual string ToJson()
         {
             return JsonConvert.SerializeObject(Data, Formatting.Indented);
         }
     }
-    public class OriginalScheduleDataType : AbstractScheduleDataType<OriginalScheduleDataType>
+    public class OriginalScheduleDataType : AbstractScheduleDataType<NPCScheduleDataType>
     {
+        public Dictionary<string, string> RawData { get; set; } = new();
+        public Dictionary<string, List<string>> ScheduleKeys { get; set; } = new();// Add this property
+
     }
-    public class UserScheduleDataType : AbstractScheduleDataType<UserScheduleDataType>
+    public class UserScheduleDataType : AbstractScheduleDataType<NPCScheduleDataType>
     {
+        [JsonIgnore]
+        public Dictionary<string, string> RawData { get; set; } = new();
+        public Dictionary<string, List<string>> ScheduleKeys { get; set; } = new(); // Add this property
+
         internal void SetData(Dictionary<string, Dictionary<string, string>> dictionary)
         {
-            throw new NotImplementedException();
+            if (dictionary == null) return;
+
+            foreach (var npcEntry in dictionary)
+            {
+                string npcName = npcEntry.Key;
+                Dictionary<string, string> npcSchedules = npcEntry.Value;
+
+                if (!Data.ContainsKey(npcName))
+                {
+                    Data[npcName] = new NPCScheduleDataType();
+                }
+
+                foreach (var scheduleEntry in npcSchedules)
+                {
+                    string scheduleKey = scheduleEntry.Key;
+                    string scheduleValue = scheduleEntry.Value;
+
+                    Data[npcName].Data[scheduleKey] = new NPCScheduleDataType { };
+                }
+            }
+        }
+
+        /// <summary>
+        /// JSON 변환 시 Value 값만 저장하도록 오버라이딩
+        /// </summary>
+        public override string ToJson()
+        {
+
+            return JsonConvert.SerializeObject(Data, Formatting.Indented);
         }
     }
+
+
+
     public class ScheduleDataType : Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>
     {
+
+        public void AddRangeWithoutSameKey(ScheduleDataType other)
+        {
+            foreach (var kvp in other)
+            {
+                this[kvp.Key] = kvp.Value;
+
+            }
+        }
     }
 
 }

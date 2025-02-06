@@ -3,6 +3,8 @@ using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 using StardewValley.Menus;
 using NPCSchedulers.Store;
+using Microsoft.Xna.Framework.Input;
+using StardewModdingAPI.Events;
 
 namespace NPCSchedulers.UI
 {
@@ -13,7 +15,6 @@ namespace NPCSchedulers.UI
         private OptionsSlider dateSlider;
         private ClickableTextureComponent leftButton;
         private ClickableTextureComponent rightButton;
-
         public ScheduleDateUI(Vector2 position, UIStateManager uiStateManager)
         {
             this.uiStateManager = uiStateManager;
@@ -43,8 +44,11 @@ namespace NPCSchedulers.UI
             leftButton.draw(b);
             rightButton.draw(b);
 
+
             // 🔹 날짜 슬라이더 그리기
             dateSlider.draw(b, 0, 0);
+
+
             var (season, date) = uiStateManager.GetCurrentDate();
             // 🔹 현재 선택된 날짜 텍스트 표시
             b.DrawString(Game1.smallFont, $"{date}",
@@ -55,7 +59,10 @@ namespace NPCSchedulers.UI
 
             return false;
         }
-
+        public override void LeftHeld(int x, int y)
+        {
+            if (dateSlider.bounds.Contains(x, y)) dateSlider.leftClickHeld(x, y);
+        }
         public override void LeftClick(int x, int y)
         {
             if (!IsVisible) return;

@@ -6,7 +6,7 @@ namespace NPCSchedulers.Store
 {
     public class FriendshipUIStateHandler : BaseUIStateHandler<Dictionary<string, int>>
     {
-        private Dictionary<string, int> friendshipConditions = new();
+        private FriendshipConditionEntry friendshipConditions;
         private List<string> villagers = new();
 
         public FriendshipUIStateHandler(string npcName, string scheduleKey) : base(npcName, scheduleKey)
@@ -16,31 +16,32 @@ namespace NPCSchedulers.Store
 
         public override void InitData()
         {
+            if (scheduleKey == null) return;
             FriendshipConditionEntry condition = ScheduleDataManager.GetFriendshipCondition(npcName, scheduleKey);
-            friendshipConditions = condition?.Condition ?? new Dictionary<string, int>();
+            friendshipConditions = condition;
             villagers = Utility.getAllCharacters().Where(npc => npc.IsVillager).Select(npc => npc.Name).ToList();
 
             foreach (var villager in villagers)
             {
-                if (!friendshipConditions.ContainsKey(villager))
+                if (!friendshipConditions.Condition.ContainsKey(villager))
                 {
-                    friendshipConditions.Add(villager, 0);
+                    friendshipConditions.Condition.Add(villager, 0);
                 }
             }
         }
         public override Dictionary<string, int> GetData()
         {
-            return friendshipConditions;
+            return friendshipConditions.Condition;
         }
 
         public override void SaveData(Dictionary<string, int> data)
         {
-            friendshipConditions = data;
+            friendshipConditions.Condition = data;
         }
 
         public override void UpdateData(Dictionary<string, int> data)
         {
-            var conditions = friendshipConditions;
+            var conditions = friendshipConditions.Condition;
             foreach (var key in conditions.Keys)
             {
                 if (data.ContainsKey(key))
@@ -60,7 +61,7 @@ namespace NPCSchedulers.Store
         {
             foreach (var npc in data.Keys)
             {
-                friendshipConditions.Remove(npc);
+                friendshipConditions.Condition.Remove(npc);
             }
         }
         public static Dictionary<string, int> FilterData(Dictionary<string, int> friendshipCondition)

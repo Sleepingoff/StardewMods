@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using NPCSchedulers.Store;
+using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewValley.GameData.Characters;
@@ -15,7 +16,7 @@ namespace NPCSchedulers.UI
 
         private static UIStateManager uiStateManager;
         private static ScheduleListUI scheduleListUI;
-        private static ScheduleEditUI scheduleEditUI;
+
         private static ScheduleDateUI scheduleDateUI;
         private static FriendshipListUI friendshipListUI;
 
@@ -50,12 +51,12 @@ namespace NPCSchedulers.UI
         {
             uiStateManager = new UIStateManager(npc.Name);
             var displayPosition = UIStateManager.GetMenuPosition();
-            var scheduleListUIDisplayPosition = new Vector2(displayPosition.X + 500, displayPosition.Y + 150);
+            var scheduleListUIDisplayPosition = new Vector2(displayPosition.X + 500, displayPosition.Y + 200);
             var scheduleDateUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y);
 
             scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition, uiStateManager);
             scheduleDateUI = new ScheduleDateUI(scheduleDateUIDisplayPosition, uiStateManager); // 날짜 UI 위치
-            scheduleEditUI = null;
+
             isOpen = true;
         }
 
@@ -63,7 +64,6 @@ namespace NPCSchedulers.UI
         {
             isOpen = false;
             scheduleListUI = null;
-            scheduleEditUI = null;
         }
 
         public override bool Draw(SpriteBatch b)
@@ -180,11 +180,7 @@ namespace NPCSchedulers.UI
             // 🔹 스케줄 리스트 UI 렌더링
             scheduleListUI?.Draw(b);
 
-            // 🔹 편집 UI가 활성화되었으면 렌더링
-            scheduleEditUI?.Draw(b);
-
-
-
+            Game1.activeClickableMenu?.drawMouse(b, ignore_transparency: true);
 
             return false;
         }
@@ -196,8 +192,43 @@ namespace NPCSchedulers.UI
             friendshipListUI?.LeftClick(x, y);
             scheduleDateUI?.LeftClick(x, y);
             scheduleListUI?.LeftClick(x, y);
-            scheduleEditUI?.LeftClick(x, y);
         }
+
+        public override void LeftHeld(int x, int y)
+        {
+            friendshipListUI?.LeftHeld(x, y);
+            scheduleDateUI?.LeftHeld(x, y);
+            scheduleListUI?.LeftHeld(x, y);
+        }
+        public void DragAction(CursorMovedEventArgs e)
+        {
+            // scheduleDateUI.DragAction(e);
+            // scheduleListUI.DragAction(e);
+        }
+        public void ScrollWheelAction(int direction)
+        {
+            int mouseX = Game1.getMouseX();
+            int mouseY = Game1.getMouseY();
+            direction = direction > 0 ? -1 : 1;
+            int x = (int)Utility.ModifyCoordinateForUIScale(mouseX);
+            int y = (int)Utility.ModifyCoordinateForUIScale(mouseY);
+            if (IsMouseOverUIElement(scheduleListUI, x, y))
+            {
+                scheduleListUI?.Scroll(direction);
+            }
+            else if (isOpenFriendshipList && IsMouseOverUIElement(friendshipListUI, x, y))
+            {
+                friendshipListUI?.Scroll(direction);
+            }
+        }
+        private bool IsMouseOverUIElement(ListUI uiElement, int mouseX, int mouseY)
+        {
+            return uiElement != null && new Rectangle(
+                (int)uiElement.viewport.X, (int)uiElement.viewport.Y,
+                uiElement.viewport.Width, uiElement.viewport.Height
+            ).Contains(mouseX, mouseY);
+        }
+
 
         // 🔹 "스케줄" 버튼 생성 및 렌더링
         public static void CreateScheduleButton(ProfileMenu menu)

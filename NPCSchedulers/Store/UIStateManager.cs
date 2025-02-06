@@ -24,18 +24,24 @@ namespace NPCSchedulers.Store
 
         //현재 날짜를 기준으로 만들어진 스케줄 딕셔너리
         public ScheduleDataType ScheduleData { get; private set; } = null;
-        private readonly FriendshipUIStateHandler friendshipHandler;
+        private Dictionary<string, FriendshipUIStateHandler> friendshipHandler;
         private readonly DateUIStateHandler dateHandler;
-
+        private string filter { get; set; } = "all";
         #endregion
         #region .ctor
         public UIStateManager(string npcName)
         {
             NPC npc = Game1.getCharacterFromName(npcName);
             SetCurrentNpc(npc);
-            friendshipHandler = new FriendshipUIStateHandler(CurrentNPC.Name, ScheduleKey);
-            dateHandler = new DateUIStateHandler(CurrentNPC.Name, ScheduleKey);
 
+            dateHandler = new DateUIStateHandler(CurrentNPC.Name, ScheduleKey);
+            // 🔥 scheduleKey마다 friendshipHandler를 개별적으로 관리해야 함
+            friendshipHandler = new Dictionary<string, FriendshipUIStateHandler>();
+
+            foreach (var key in ScheduleDataManager.GetFinalSchedule(CurrentNPC.Name).Keys)
+            {
+                friendshipHandler[key] = new FriendshipUIStateHandler(CurrentNPC.Name, key);
+            }
             InitScheduleData();
         }
         #endregion
@@ -49,12 +55,23 @@ namespace NPCSchedulers.Store
         // 🔹 스케줄 페이지 열고 닫기
         public void ToggleEditMode(string scheduleKey = null)
         {
-            IsEditMode = !IsEditMode;
+            IsEditMode = scheduleKey != null;
             EditedScheduleKey = IsEditMode ? scheduleKey : null;
-
-            if (IsEditMode)
-                friendshipHandler.GetData();
+            if (IsEditMode && ScheduleKey != null)
+                friendshipHandler[ScheduleKey].GetData();
+            else InitScheduleData();
         }
+        public void ToggleScheduleVersion()
+        {
+            filter = filter == "all" ? "user" : filter == "user" ? "origin" : filter == "origin" ? "all" : "user";
+            var (season, date) = GetCurrentDate();
+            ScheduleData = ScheduleDataManager.GetFilteredSchedule(CurrentNPC.Name, season, date, filter);
+        }
+        public string GetCurrentFilter()
+        {
+            return filter;
+        }
+
         #region  npc
         public NPC GetCurrentNpc()
         {
@@ -94,6 +111,7 @@ namespace NPCSchedulers.Store
 
             }
             dateHandler.UpdateData((seasonDirection, date));
+            InitScheduleData();
         }
         #endregion
 
@@ -102,14 +120,17 @@ namespace NPCSchedulers.Store
         //key: npcName, value: heartLevel
         public Dictionary<string, int> GetFriendshipCondition()
         {
-            return friendshipHandler.GetData();
+            if (ScheduleKey == null) return new();
+            return friendshipHandler[ScheduleKey].GetData();
         }
 
         //key: npcName, value: heartLevel
         public void SetFriendshipCondition(string name, int level)
         {
+            if (ScheduleKey == null) return;
             Dictionary<string, int> data = new Dictionary<string, int> { { name, level } };
-            friendshipHandler.UpdateData(data);
+            friendshipHandler[ScheduleKey].UpdateData(data);
+            InitScheduleData();
         }
         #endregion
         #region  schedule
@@ -135,7 +156,7 @@ namespace NPCSchedulers.Store
         public void InitScheduleData()
         {
             var (season, date) = GetCurrentDate();
-            ScheduleData = ScheduleDataManager.GetFinalSchedule(CurrentNPC.Name, season, date);
+            ScheduleData = ScheduleDataManager.GetFilteredSchedule(CurrentNPC.Name, season, date);
         }
         /// <summary>
         /// 스케줄 리스트 반환
@@ -168,10 +189,15 @@ namespace NPCSchedulers.Store
 
             return initData;
         }
-
-        public void SetScheduleDataByEntry(ScheduleEntry newEntry)
+        public void SetScheduleKey(string newScheduleKey)
         {
-            List<ScheduleEntry> scheduleEntries = GetScheduleEntries();
+            ScheduleKey = newScheduleKey;
+            GetFriendshipCondition();
+        }
+        public void SetScheduleDataByEntry(ScheduleEntry newEntry, string scheduleKey = null)
+        {
+            ScheduleKey = scheduleKey;
+            List<ScheduleEntry> scheduleEntries = GetScheduleEntries(scheduleKey);
             bool isIncludes = scheduleEntries.Contains(newEntry);
             if (!isIncludes)
             {
@@ -182,8 +208,11 @@ namespace NPCSchedulers.Store
         }
         public void SetScheduleDataByList(List<ScheduleEntry> newEntries)
         {
-            var (friendship, _) = ScheduleData[ScheduleKey];
-            ScheduleData[ScheduleKey] = (friendship, newEntries);
+            var friendship = GetFriendshipCondition();
+            var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
+            ScheduleData[ScheduleKey] = (friendshipEntry, newEntries);
+            InitScheduleData(); Console.WriteLine("state");
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, friendshipEntry, newEntries);
         }
 
         public void SetScheduleDataByKey(string key, FriendshipConditionEntry friendshipConditionEntry = null, List<ScheduleEntry> newSchedule = null)
@@ -207,6 +236,8 @@ namespace NPCSchedulers.Store
             {
                 ScheduleData[key] = (friendshipConditionEntry, newSchedule);
             }
+            InitScheduleData();
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, key, friendshipConditionEntry, newSchedule);
 
         }
 

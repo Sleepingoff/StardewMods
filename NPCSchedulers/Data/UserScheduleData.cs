@@ -37,7 +37,7 @@ namespace NPCSchedulers.DATA
         }
         //상태 변경 없음
 
-        public static Dictionary<string, NPCScheduleDataType> LoadUserSchedules()
+        public static Dictionary<string, UserScheduleDataType> LoadUserSchedules()
         {
             string fileContents = LoadFileContents(FilePath);
             var userRawData = string.IsNullOrWhiteSpace(fileContents)
@@ -53,7 +53,7 @@ namespace NPCSchedulers.DATA
             Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> userSchedules = new();
 
             // 🔹 `LoadUserSchedules()`를 사용하여 최신 데이터 가져오기
-            Dictionary<string, NPCScheduleDataType> userData = LoadUserSchedules();
+            Dictionary<string, UserScheduleDataType> userData = LoadUserSchedules();
 
             if (!userData.ContainsKey(npcName))
                 return userSchedules;
@@ -75,7 +75,7 @@ namespace NPCSchedulers.DATA
             return userSchedules;
         }
 
-        public override object GetSchedule(string npcName, string key)
+        public override string GetSchedule(string npcName, string key)
         {
             if (scheduleData.ContainsKey(npcName) && scheduleData[npcName] is Dictionary<string, string> npcSchedules)
             {
@@ -93,15 +93,17 @@ namespace NPCSchedulers.DATA
             return new HashSet<string>();
         }
 
-        public void SaveUserSchedules(Dictionary<string, NPCScheduleDataType> userSchedules)
+        public void SaveUserSchedules(Dictionary<string, UserScheduleDataType> userSchedules)
         {
             UserScheduleDataType userScheduleDataType = new UserScheduleDataType();
-            userScheduleDataType.SetData(userSchedules.ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.RawData
-            ));
+            HashSet<string> visitedKeys = new HashSet<string>();
+            Dictionary<string, Dictionary<string, string>> formattedData = userSchedules
+            .ToDictionary(
+                kvp => kvp.Key, // 🔹 NPC 이름
+                kvp => kvp.Value.RawData // 🔹 해당 NPC의 RawData (scheduleKey -> scheduleValue)
+            );
 
-            string json = userScheduleDataType.ToJson();
+            string json = JsonConvert.SerializeObject(formattedData, Formatting.Indented);
             File.WriteAllText(FilePath, json);
         }
 
@@ -118,16 +120,21 @@ namespace NPCSchedulers.DATA
                   ?? new Dictionary<string, Dictionary<string, string>>();
         }
 
-        private static Dictionary<string, NPCScheduleDataType> ConvertUserDataToNPCScheduleDataType(Dictionary<string, Dictionary<string, string>> userRawData)
+        private static Dictionary<string, UserScheduleDataType> ConvertUserDataToNPCScheduleDataType(Dictionary<string, Dictionary<string, string>> userRawData)
         {
-            Dictionary<string, NPCScheduleDataType> convertedData = new();
+            Dictionary<string, UserScheduleDataType> convertedData = new();
 
             foreach (var npcEntry in userRawData)
             {
-                NPCScheduleDataType npcScheduleData = new NPCScheduleDataType();
+                UserScheduleDataType npcScheduleData = new UserScheduleDataType();
 
                 foreach (var scheduleEntry in npcEntry.Value)
                 {
+                    if (string.IsNullOrWhiteSpace(scheduleEntry.Key) || string.IsNullOrWhiteSpace(scheduleEntry.Value))
+                    {
+                        continue; // 🚨 잘못된 데이터는 저장하지 않고 넘어감
+                    }
+
                     npcScheduleData.RawData[scheduleEntry.Key] = scheduleEntry.Value;
                 }
 

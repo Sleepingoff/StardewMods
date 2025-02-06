@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using NPCSchedulers.Store;
+using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewValley.Menus;
@@ -11,8 +13,8 @@ namespace NPCSchedulers.UI
     {
         private UIStateManager uiStateManager;
         private Vector2 heartDisplayPosition;
-        private OptionsSlider heartSlider;  // 🔹 기존 하트 슬라이더
-        private NPC villager;     // 🔹 모든 마을 NPC 목록
+        private OptionsSlider heartSlider;
+        private NPC villager;
         public int Height = 20;
         public FriendshipUI(Vector2 position, string npcName, int FriendshipLevel, UIStateManager uiStateManager)
         {
@@ -26,7 +28,6 @@ namespace NPCSchedulers.UI
             // 🔹 마을 NPC 목록 불러오기
             villager = Game1.getCharacterFromName(npcName);
         }
-
         public override bool Draw(SpriteBatch b)
         {
             if (!IsVisible) return true;
@@ -52,7 +53,21 @@ namespace NPCSchedulers.UI
             );
             return false;
         }
+        public override void LeftHeld(int x, int y)
+        {
+            heartSlider.leftClickHeld(x, y);
+            // if (heartSlider.bounds.Contains(x, y))
+            // {
+            //     int prevValue = heartSlider.value;  // 기존 값 저장
+            //     int sliderMinX = heartSlider.bounds.X;
+            //     int sliderMaxX = heartSlider.bounds.X + heartSlider.bounds.Width;
 
+            //     // 🔹 마우스 위치를 기반으로 슬라이더 값 조정
+            //     float ratio = (float)(x - sliderMinX) / (sliderMaxX - sliderMinX);
+            //     heartSlider.value = MathHelper.Clamp((int)(ratio * 99), 0, 99);
+            //     Console.WriteLine(heartSlider.value);
+            // }
+        }
         public override void LeftClick(int x, int y)
         {
             // 🔹 하트 슬라이더 클릭 감지
@@ -145,17 +160,18 @@ namespace NPCSchedulers.UI
             friendshipUIs.Clear();
             var EditedFriendshipCondition = uiStateManager.GetFriendshipCondition();
 
-            int yOffset = 0;
+            int yOffset = 20;
             foreach (var npc in villagers)
             {
                 int level = 0;
                 if (EditedFriendshipCondition.ContainsKey(npc))
                 {
                     level = EditedFriendshipCondition[npc];
-                    yOffset += 90;
                 }
+
                 var detailDisplayPosition = new Vector2(position.X, position.Y + yOffset - scrollPosition);
                 friendshipUIs.Add(new FriendshipUI(detailDisplayPosition, npc, level, uiStateManager));
+                yOffset += 90;
             }
             SetMaxScrollPosition(yOffset, viewport.Height);
         }
@@ -166,14 +182,22 @@ namespace NPCSchedulers.UI
             SpriteText.drawStringWithScrollCenteredAt(b, currentNPC.Name, viewport.Center.X, viewport.Top - 60);
 
             base.Draw(b);
-
+            UpdateFriendshipUI();
             foreach (var friendshipUI in friendshipUIs)
             {
                 friendshipUI.Draw(b);
-
             }
 
             return base.DrawEnd(b);
+
+        }
+        public override void LeftHeld(int x, int y)
+        {
+            base.LeftHeld(x, y);
+            foreach (var friendshipUI in friendshipUIs)
+            {
+                friendshipUI.LeftHeld(x, y);
+            }
 
         }
         public override void LeftClick(int x, int y)

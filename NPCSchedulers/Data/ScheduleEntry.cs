@@ -113,8 +113,9 @@ namespace NPCSchedulers.DATA
 
             string[] scheduleParts = rawSchedule.Split('/');
 
-            foreach (var part in scheduleParts)
+            for (int i = 0; i < scheduleParts.Length; i++)
             {
+                var part = scheduleParts[i];
                 string[] elements = part.Split(' ');
                 if (elements.Length == 0) continue;
 
@@ -122,11 +123,11 @@ namespace NPCSchedulers.DATA
                 if (elements[0] == "NOT" && elements[1] == "friendship")
                 {
                     Dictionary<string, int> condition = new();
-                    for (int i = 2; i < elements.Length; i += 2)
+                    for (int k = 2; k < elements.Length - 1; k += 2)
                     {
-                        if (i + 1 < elements.Length && int.TryParse(elements[i + 1], out int level))
+                        if (k + 1 < elements.Length && int.TryParse(elements[k + 1], out int level))
                         {
-                            condition[elements[i]] = level;  // NPC 이름 → 우정 레벨 저장
+                            condition[elements[k]] = level;  // NPC 이름 → 우정 레벨 저장
                         }
                     }
                     friendshipCondition = new FriendshipConditionEntry(npcName, key, condition);
@@ -155,12 +156,12 @@ namespace NPCSchedulers.DATA
                 if (elements.Length - startIndex < 4) continue;
 
                 string location = elements[startIndex];
-                int x = int.Parse(elements[startIndex + 1]);
-                int y = int.Parse(elements[startIndex + 2]);
-                int direction = int.Parse(elements[startIndex + 3]);
+                int.TryParse(elements[startIndex + 1], out int x);
+                int.TryParse(elements[startIndex + 2], out int y);
+                int.TryParse(elements[startIndex + 3], out int direction);
                 string actionValue = elements.Length > startIndex + 4 ? elements[startIndex + 4] : "None";
 
-                entries.Add(new ScheduleEntry(key, time, location, x, y, direction, actionValue, "None"));
+                entries.Add(new ScheduleEntry(key + "/" + i, time, location, x, y, direction, actionValue, "None"));
             }
 
             return entries;

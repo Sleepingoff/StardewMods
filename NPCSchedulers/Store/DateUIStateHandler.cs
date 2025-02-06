@@ -54,7 +54,7 @@ namespace NPCSchedulers.Store
             // 날짜를 삭제하는 개념은 없으므로 삭제 로직은 비워둠
         }
         // 🔹 요일 계산
-        public string CalculateDayOfWeek(int date)
+        public static string CalculateDayOfWeek(int date)
         {
             string[] days = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
             return days[(date - 1) % 7]; // 1일부터 시작하므로 (date - 1)

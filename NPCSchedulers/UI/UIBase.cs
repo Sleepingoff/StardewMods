@@ -14,6 +14,8 @@ namespace NPCSchedulers.UI
         public void ToggleVisibility() => IsVisible = !IsVisible;
 
         public abstract bool Draw(SpriteBatch b);
+
+        public virtual void LeftHeld(int x, int y) { }
         public virtual void LeftClick(int x, int y) { }
         public virtual void Update(GameTime gameTime) { }
 
@@ -27,7 +29,7 @@ namespace NPCSchedulers.UI
         protected int maxScrollPosition = 0;
         protected Vector2 position;
         protected List<UIBase> elements = new List<UIBase>(); // 🔹 리스트 UI에 추가될 요소들
-        protected Rectangle viewport;
+        public Rectangle viewport { get; protected set; }
         protected ClickableTextureComponent upArrow;
         protected ClickableTextureComponent downArrow;
 
