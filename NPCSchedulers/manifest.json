@@ -1,7 +1,7 @@
 {
     "Name": "NPC Schedulers",
     "Author": "slO",
-    "Version": "0.0.1",
+    "Version": "0.0.2",
     "Description": "Allows players to view and modify NPC schedules in-game.",
     "UniqueID": "slO.NPCSchedulers",
     "EntryDll": "NPCSchedulers.dll",

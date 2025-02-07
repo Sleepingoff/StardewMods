@@ -203,8 +203,8 @@ namespace NPCSchedulers.Store
             //v0.0.2 + 동시간대 기존 다른 스케줄을 지우기
             if (isIncludesSameTime)
             {
-                var sameScheduleEntry = scheduleEntries.Where(entry => entry.Time == newEntry.Time);
-                foreach (var entry in sameScheduleEntry)
+                var sameScheduleEntries = scheduleEntries.Where(entry => entry.Time == newEntry.Time).ToList();
+                foreach (var entry in sameScheduleEntries)
                 {
                     scheduleEntries.Remove(entry);
                 }

@@ -69,7 +69,7 @@ namespace NPCSchedulers.UI
                         string action = entry.endOfRouteBehavior;
 
                         // 🔥 중복 방지 후 추가
-                        if (!actionOptions[npc.Name].Contains(action))
+                        if (!actionOptions[npc.Name].Contains(action ?? "None"))
                         {
                             actionOptions[npc.Name].Add(action);
                         }
@@ -86,7 +86,7 @@ namespace NPCSchedulers.UI
             int offsetX = editBox.X + 10 + 200;
             int offsetY = editBox.Y + 10;
 
-            timeTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Time"), entry.Time.ToString());
+            timeTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Time"), entry.Time.ToString() ?? "");
             offsetY += 50;
 
             //locationOptions
@@ -94,9 +94,9 @@ namespace NPCSchedulers.UI
             locationSlider.bounds.Width = 400;
             locationSlider.value = (int)(locationOptions.IndexOf(entry.Location) / (float)locationOptions.Count * 99);
             offsetY += 50;
-            xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate"), entry.X.ToString());
+            xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate"), entry.X.ToString() ?? "");
             offsetY += 50;
-            yTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.YCoordinate"), entry.Y.ToString());
+            yTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.YCoordinate"), entry.Y.ToString() ?? "");
             offsetY += 50;
             directionSlider = new OptionsSlider("", 0, offsetX, 0);
             directionSlider.value = (int)(entry.Direction / 4f * 99);
@@ -106,7 +106,7 @@ namespace NPCSchedulers.UI
             actionSlider.bounds.Width = 400;
             actionSlider.value = (int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99);
             offsetY += 50;
-            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk"), entry.Talk);
+            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk"), entry.Talk ?? "");
             offsetY += 50;
             // 🔹 저장 및 취소 버튼
             saveButton = new ClickableTextureComponent(new Rectangle((int)position.X + 120, offsetY, 32, 32),
@@ -207,7 +207,6 @@ namespace NPCSchedulers.UI
             // 🔹 저장 버튼 클릭 → 변경사항 반영
             if (saveButton.containsPoint(x, y))
             {
-                Console.WriteLine("button");
                 ApplyChanges();
                 uiStateManager.ToggleEditMode(null);
             }
@@ -237,7 +236,7 @@ namespace NPCSchedulers.UI
 
             string newTalk = talkTextBox.textBox.Text;
             // 🔹 새 스케줄 엔트리 생성
-            ScheduleEntry updatedEntry = new ScheduleEntry(scheduleKey, newTime, newLocation, newX, newY, directionIndex, newAction, newTalk);
+            ScheduleEntry updatedEntry = new ScheduleEntry(scheduleKey, newTime, newLocation, newX, newY, directionIndex, newAction ?? "", newTalk ?? "");
             string key = scheduleKey.Split('/')[0];
             // 🔹 `UIStateManager`를 통해 스케줄 업데이트
             uiStateManager.SetScheduleDataByEntry(updatedEntry, key);

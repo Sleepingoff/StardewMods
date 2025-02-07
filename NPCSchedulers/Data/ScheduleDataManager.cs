@@ -314,8 +314,9 @@ namespace NPCSchedulers
                 string talk = null;
 
                 // 🔹 5번째 또는 6번째 요소가 큰따옴표(`"`)로 시작하면 Talk 스케줄로 분류
-                if (elements.Length > 5 && elements[5].StartsWith("\""))
+                if ((elements.Length > 5 && elements[5].StartsWith("\"")))
                 {
+                    action = null;
                     talk = string.Join(" ", elements.Skip(5)); // 🔥 대사 문자열 결합
                     talk = talk.Trim('\"'); // 🔥 양쪽 `"` 제거
 
@@ -323,16 +324,27 @@ namespace NPCSchedulers
                     if (talk.StartsWith("Strings"))
                     {
                         talk = Game1.content.LoadString(talk);
-
                     }
                     if (string.IsNullOrWhiteSpace(talk))
                     {
                         talk = null;
                     }
                 }
-                else if (elements.Length > 5)
+                else if ((elements.Length > 6 && elements[6].StartsWith("\"")))
                 {
-                    action = elements[5]; // 🔹 일반 액션 저장
+                    action = elements[5];
+                    talk = string.Join(" ", elements.Skip(6)); // 🔥 대사 문자열 결합
+                    talk = talk.Trim('\"'); // 🔥 양쪽 `"` 제거
+
+                    // 🔹 talk이 "Strings"로 시작하면 게임 내 콘텐츠 파일에서 로드
+                    if (talk.StartsWith("Strings"))
+                    {
+                        talk = Game1.content.LoadString(talk);
+                    }
+                    if (string.IsNullOrWhiteSpace(talk))
+                    {
+                        talk = null;
+                    }
                 }
                 entries.Add(new ScheduleEntry(key + "/" + i, time, location, x, y, direction, action, talk));
             }
@@ -378,13 +390,13 @@ namespace NPCSchedulers
         {
             string scheduleEntry = $"{entry.Time} {entry.Location} {entry.X} {entry.Y} {entry.Direction}";
             //v0.0.2 + null이거나 빈문자열일 경우 예외처리
-            if (entry.Action != null || entry.Action != "")
+            if (entry.Action != null && entry.Action != "" && entry.Action != "None")
             {
-                scheduleEntry += " " + entry.Action.TrimStart(' ');
+                scheduleEntry += " " + entry.Action;
             }
-            if (entry.Talk != null || entry.Talk != "")
+            if (entry.Talk != null && entry.Talk != "")
             {
-                scheduleEntry += " \"" + entry.Talk.TrimStart(' ') + "\"";
+                scheduleEntry += " \"" + entry.Talk + "\"";
             }
             return scheduleEntry;
         }

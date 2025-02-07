@@ -65,9 +65,9 @@ namespace NPCSchedulers.UI
                 b.Draw(Game1.staminaRect, detailDisplay, new Rectangle(0, 0, 1, 1), Color.SandyBrown * 0.5f, 0f, Vector2.Zero, SpriteEffects.None, 0.8f);
 
 
-                string scheduleText = $"{entry.Time}: {entry.Location} / {entry.Action}";
+                string scheduleText = $"{entry.Time}: {entry.Location} / {entry.Action ?? "None"}";
                 b.DrawString(Game1.smallFont, scheduleText, new Vector2(scheduleBox.X + 10, yOffset + 10), Color.Black);
-                b.DrawString(Game1.smallFont, entry.Talk, new Vector2(scheduleBox.X + 10, yOffset + 40), Color.Black);
+                b.DrawString(Game1.smallFont, entry.Talk ?? "None", new Vector2(scheduleBox.X + 10, yOffset + 40), Color.Black);
 
                 entry.SetBounds(detailDisplay.X, detailDisplay.Y, detailDisplay.Width, detailDisplay.Height);
                 // 🔹 개별 삭제 버튼 추가
