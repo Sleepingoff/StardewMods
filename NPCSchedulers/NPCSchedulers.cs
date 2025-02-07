@@ -94,6 +94,7 @@ namespace NPCSchedulers
             {
                 schedulePage.ScrollWheelAction(e.Delta);
             }
+
         }
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs e)

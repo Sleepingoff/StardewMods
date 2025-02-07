@@ -184,6 +184,14 @@ namespace NPCSchedulers.UI
 
             return false;
         }
+
+        /// <summary>
+        /// 버튼에 대한 툴팁을 그리는 함수
+        /// </summary>
+        public static void drawButtonToolTip(SpriteBatch b, string hoverText, string hoverTitle, int x, int y)
+        {
+            IClickableMenu.drawHoverText(b, hoverText, Game1.smallFont, x, y, -1, hoverTitle, -1, null, null, 0, null, -1, -1);
+        }
         // 🔹 클릭 이벤트 처리 추가
         public override void LeftClick(int x, int y)
         {

@@ -20,5 +20,18 @@
     "ScheduleUI.ScheduleAdded": "Schedule added!",
     "ScheduleUI.InvalidInput": "Invalid input values!",
     "ScheduleUI.ScheduleRemoved": "Schedule removed!",
-    "ScheduleUI.NoScheduleToRemove": "No schedules to remove!"
+    "ScheduleUI.NoScheduleToRemove": "No schedules to remove!",
+    "tooltip": {
+        "schedule_button": "Click to edit NPC schedule.",
+        "time_slider": "Adjust time using the slider. (24-hour format)",
+        "location_slider": "Select a location by moving the slider.",
+        "coordinate_input": "Enter X and Y coordinates for precise positioning.",
+        "direction_slider": "Choose the NPC's facing direction using the slider.",
+        "action_slider": "Select an action for the NPC using the slider.",
+        "talk_select": "Enter the dialogue NPC will say upon arrival.",
+        "save_button": "Save the current schedule changes.",
+        "cancel_button": "Cancel changes and revert to the previous state.",
+        "delete_button": "Delete the selected schedule entry.",
+        "toggle_user_original": "Switch between user-edited and original schedule data."
+    }
 }

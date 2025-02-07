@@ -38,6 +38,7 @@ namespace NPCSchedulers.UI
             drawNPCSlotHeart(heartDisplayPosition, b, friendshipLevel);
 
             heartSlider.draw(b, 0, 0);
+
             Texture2D portraitTexture = villager.Portrait;
             // 🔥 첫 번째 초상화만 잘라서 가져오기
             Rectangle sourceRect = new Rectangle(0, 0, 64, 64); // (X:0, Y:0) → 첫 번째 초상화
@@ -51,6 +52,7 @@ namespace NPCSchedulers.UI
                 sourceRect, // 🔥 잘라낸 부분만 그리기
                 Color.White
             );
+
             return false;
         }
         public override void LeftHeld(int x, int y)

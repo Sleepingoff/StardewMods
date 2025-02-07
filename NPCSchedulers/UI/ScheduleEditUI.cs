@@ -16,8 +16,8 @@ namespace NPCSchedulers.UI
         public Vector2 position;
         private ScheduleEntry entry;
         private string scheduleKey;
-        private ClickableTextureComponent saveButton;
-        private ClickableTextureComponent cancelButton;
+        private ClickableComponent saveButton;
+        private ClickableComponent cancelButton;
 
         private OptionsSlider locationSlider;
         private OptionsSlider directionSlider;
@@ -109,10 +109,10 @@ namespace NPCSchedulers.UI
             talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk"), entry.Talk ?? "");
             offsetY += 50;
             // 🔹 저장 및 취소 버튼
-            saveButton = new ClickableTextureComponent(new Rectangle((int)position.X + 120, offsetY, 32, 32),
-                Game1.mouseCursors, new Rectangle(128, 256, 64, 64), 1f);
-            cancelButton = new ClickableTextureComponent(new Rectangle((int)position.X, offsetY, 32, 32),
-                Game1.mouseCursors, new Rectangle(192, 256, 64, 64), 1f);
+            // 🔹 저장 및 취소 버튼 (텍스트 버튼)
+            saveButton = new ClickableComponent(new Rectangle((int)position.X + 120, offsetY, 80, 32), "Save");
+            cancelButton = new ClickableComponent(new Rectangle((int)position.X, offsetY, 80, 32), "Cancel");
+
 
             return new List<OptionsElement> {
                 timeTextBox,
@@ -182,8 +182,17 @@ namespace NPCSchedulers.UI
             // 🔹 저장 및 취소 버튼 유지
             saveButton.bounds = new Rectangle(editBox.X + editBox.Width - 80, offsetY, 64, 64);
             cancelButton.bounds = new Rectangle(editBox.X + editBox.Width - 140, offsetY, 64, 64);
-            saveButton.draw(b);
-            cancelButton.draw(b);
+            // 배경 색상 설정 (버튼 느낌 강조)
+            Color buttonColor = Color.Gray;
+            Color textColor = Color.White;
+
+            // 🔹 저장 버튼 렌더링
+            b.Draw(Game1.menuTexture, saveButton.bounds, new Rectangle(0, 256, 64, 64), buttonColor);
+            Utility.drawTextWithShadow(b, saveButton.name, Game1.smallFont, new Vector2(saveButton.bounds.X + 10, saveButton.bounds.Y + 8), textColor);
+
+            // 🔹 취소 버튼 렌더링
+            b.Draw(Game1.menuTexture, cancelButton.bounds, new Rectangle(0, 256, 64, 64), buttonColor);
+            Utility.drawTextWithShadow(b, cancelButton.name, Game1.smallFont, new Vector2(cancelButton.bounds.X + 10, cancelButton.bounds.Y + 8), textColor);
 
             return false;
         }
@@ -209,12 +218,14 @@ namespace NPCSchedulers.UI
             {
                 ApplyChanges();
                 uiStateManager.ToggleEditMode(null);
+                Game1.playSound("smallSelect");
             }
 
             // 🔹 취소 버튼 클릭 → 편집 모드 종료
             if (cancelButton.containsPoint(x, y))
             {
                 uiStateManager.ToggleEditMode(null);
+                Game1.playSound("smallSelect");
             }
         }
 
