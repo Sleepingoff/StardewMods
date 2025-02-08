@@ -81,6 +81,7 @@ namespace NPCSchedulers.UI
                     scheduleEditUI.position = new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80);
                     scheduleEditUI?.Draw(b);
                     yOffset += 600;
+                    return false;
                 }
 
                 yOffset += 100; // 🔹 각 스케줄 간격 유지
@@ -204,16 +205,18 @@ namespace NPCSchedulers.UI
         {
             originButton?.draw(b);
             b.DrawString(Game1.smallFont, uiStateManager.GetCurrentFilter(), new Vector2(position.X + viewport.Width - 100, viewport.Top), Color.Gray * 0.5f);
-            base.Draw(b);
+
             UpdateSchedules();
 
 
             foreach (var scheduleUI in scheduleEntries)
             {
+                base.Draw(b);
                 scheduleUI.Draw(b);
+                base.DrawEnd(b);
             }
 
-            return base.DrawEnd(b);
+            return false;
         }
 
         public override void LeftHeld(int x, int y)

@@ -110,9 +110,8 @@ namespace NPCSchedulers.UI
             offsetY += 50;
             // 🔹 저장 및 취소 버튼
             // 🔹 저장 및 취소 버튼 (텍스트 버튼)
-            saveButton = new ClickableComponent(new Rectangle((int)position.X + 120, offsetY, 80, 32), i18n.Get("button.save").Default("Save"));
-            cancelButton = new ClickableComponent(new Rectangle((int)position.X, offsetY, 80, 32), i18n.Get("button.cancel").Default("Cancel"));
-
+            cancelButton = new ClickableComponent(new Rectangle((int)position.X + 100, offsetY - 250, 200, 64), i18n.Get("button.cancel").Default("Cancel"));
+            saveButton = new ClickableComponent(new Rectangle((int)position.X + 200, offsetY - 250, 200, 64), i18n.Get("button.save").Default("Save"));
 
             return new List<OptionsElement> {
                 timeTextBox,
@@ -138,7 +137,6 @@ namespace NPCSchedulers.UI
             timeTextBox.bounds = new Rectangle(offsetX, offsetY, 400, timeTextBox.bounds.Height);
             timeTextBox.draw(b, offsetX, offsetY);
             offsetY += 50;
-
             // 🔹 기존 `foreach`에서 하던 위치 계산을 그대로 적용
             b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Location").Default("Location"), new Vector2(offsetX, offsetY - 10), Color.Black);
             locationSlider.draw(b, 0, 0);
@@ -180,19 +178,31 @@ namespace NPCSchedulers.UI
             talkTextBox.draw(b, offsetX, offsetY);
             offsetY += 50;
             // 🔹 저장 및 취소 버튼 유지
-            saveButton.bounds = new Rectangle(editBox.X + editBox.Width - 80, offsetY, 64, 64);
-            cancelButton.bounds = new Rectangle(editBox.X + editBox.Width - 140, offsetY, 64, 64);
+            saveButton.bounds = new Rectangle(editBox.Center.X + 100, offsetY + 50, 200, 64);
+            cancelButton.bounds = new Rectangle(editBox.Center.X - 100, offsetY + 50, 200, 64);
             // 배경 색상 설정 (버튼 느낌 강조)
             Color buttonColor = Color.Gray;
             Color textColor = Color.White;
-
             // 🔹 저장 버튼 렌더링
             b.Draw(Game1.menuTexture, saveButton.bounds, new Rectangle(0, 256, 64, 64), buttonColor);
-            Utility.drawTextWithShadow(b, saveButton.name, Game1.smallFont, new Vector2(saveButton.bounds.X + 10, saveButton.bounds.Y + 8), textColor);
+            Utility.drawTextWithShadow(b, saveButton.name, Game1.smallFont, new Vector2(saveButton.bounds.X + 50, saveButton.bounds.Y + 8), textColor);
 
             // 🔹 취소 버튼 렌더링
             b.Draw(Game1.menuTexture, cancelButton.bounds, new Rectangle(0, 256, 64, 64), buttonColor);
-            Utility.drawTextWithShadow(b, cancelButton.name, Game1.smallFont, new Vector2(cancelButton.bounds.X + 10, cancelButton.bounds.Y + 8), textColor);
+            Utility.drawTextWithShadow(b, cancelButton.name, Game1.smallFont, new Vector2(cancelButton.bounds.X + 30, cancelButton.bounds.Y + 8), textColor);
+            b.End();
+            b.Begin();
+
+
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Time").Default("Enter time (format: HHMM, only number)"), timeTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Location").Default("Select a location by moving the slider."), locationSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), xTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), yTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Direction").Default("Choose the NPC's facing direction using the slider."), directionSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Action").Default("Select an action for the NPC using the slider."), actionSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Talk").Default("Enter the dialogue NPC will say upon arrival."), talkTextBox.bounds);
+            b.End();
+            b.Begin();
 
             return false;
         }

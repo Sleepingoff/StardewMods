@@ -188,14 +188,15 @@ namespace NPCSchedulers.UI
         /// </summary>
         public static void DrawTooltip(SpriteBatch b, string text, Rectangle bounds)
         {
-            int x = (int)Utility.ModifyCoordinateForUIScale(Game1.getMouseX());
-            int y = (int)Utility.ModifyCoordinateForUIScale(Game1.getMouseY());
+            int x = Game1.getMouseX();
+            int y = Game1.getMouseY();
             // 1️⃣ 마우스가 영역 안에 있는지 확인
+
             if (bounds.Contains(x, y))
             {
                 // 2️⃣ 툴팁 위치 계산
-                int tooltipX = x + 20;  // 마우스 오른쪽에 표시
-                int tooltipY = y + 20;  // 마우스 아래쪽에 표시
+                int tooltipX = 20;  // 마우스 오른쪽에 표시
+                int tooltipY = 20;  // 마우스 아래쪽에 표시
 
                 // 3️⃣ 화면 경계를 벗어나지 않도록 조정
                 if (tooltipX + bounds.Width > Game1.viewport.Width)
@@ -205,7 +206,7 @@ namespace NPCSchedulers.UI
                     tooltipY -= bounds.Height;  // 아래쪽 경계 벗어나면 위로 이동
 
                 // 4️⃣ 툴팁 배경 & 텍스트 그리기
-                IClickableMenu.drawHoverText(b, text, Game1.smallFont, tooltipX, tooltipY);
+                IClickableMenu.drawHoverText(b, text, Game1.smallFont, tooltipX, tooltipY, boxScale: 0.5f);
             }
         }
 
@@ -215,6 +216,8 @@ namespace NPCSchedulers.UI
             if (!isOpen) return;
 
             friendshipListUI?.LeftClick(x, y);
+            //!need test
+            // friendshipListUI?.UpdateFriendshipUI();
             scheduleDateUI?.LeftClick(x, y);
             scheduleListUI?.LeftClick(x, y);
         }
@@ -224,11 +227,6 @@ namespace NPCSchedulers.UI
             friendshipListUI?.LeftHeld(x, y);
             scheduleDateUI?.LeftHeld(x, y);
             scheduleListUI?.LeftHeld(x, y);
-        }
-        public void DragAction(CursorMovedEventArgs e)
-        {
-            // scheduleDateUI.DragAction(e);
-            // scheduleListUI.DragAction(e);
         }
         public void ScrollWheelAction(int direction)
         {
@@ -259,34 +257,36 @@ namespace NPCSchedulers.UI
         public static void CreateScheduleButton(ProfileMenu menu)
         {
             int buttonX = menu.xPositionOnScreen + 480;
-            int buttonY = menu.yPositionOnScreen + 50;
+            int buttonY = menu.yPositionOnScreen + 650;
 
-            scheduleButton = new Rectangle(buttonX, buttonY, 64, 64);
-            friendshipButton = new Rectangle(buttonX + 64, buttonY, 64, 64);
+            scheduleButton = new Rectangle(buttonX, buttonY, 180, 32);
+            friendshipButton = new Rectangle(buttonX + 190, buttonY, 64, 32);
         }
         private static void DrawDialogButton(SpriteBatch b, Rectangle bounds, string text, bool disable = false)
         {
+            b.End();
+            b.Begin();
             float alpha = disable ? 0.5f : 1.0f; // 🔹 비활성화 상태면 50% 투명도
 
             // 다이얼로그 박스 배경
             IClickableMenu.drawTextureBox(
                 b, Game1.menuTexture, new Rectangle(0, 256, 60, 60),
                 bounds.X - 10, bounds.Y - 10, bounds.Width + 20, bounds.Height + 20,
-                Color.White * alpha, 1f, false // 🔹 Opacity 적용
+                Color.White * alpha, 1f, false
             );
 
 
             // 버튼 텍스트 (비활성화일 경우 회색으로 표시)
             Utility.drawTextWithShadow(
                 b, text, Game1.smallFont,
-                new Vector2(bounds.X + bounds.Width / 2 - Game1.smallFont.MeasureString(text).X / 2, bounds.Y + bounds.Height + 5),
+                new Vector2(bounds.X + bounds.Width / 2 - Game1.smallFont.MeasureString(text).X / 2, bounds.Y),
                 disable ? Color.Gray * alpha : Color.Black
             );
         }
         public static void DrawButton(SpriteBatch b)
         {
             DrawDialogButton(b, scheduleButton, "Scheduler");
-            DrawDialogButton(b, friendshipButton, "<3", isOpen);
+            DrawDialogButton(b, friendshipButton, "<3", !isOpen);
         }
         public static bool IsOpenFriendshipList(int x, int y)
         {
