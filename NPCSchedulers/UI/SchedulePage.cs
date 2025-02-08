@@ -20,8 +20,8 @@ namespace NPCSchedulers.UI
         private static ScheduleDateUI scheduleDateUI;
         private static FriendshipListUI friendshipListUI;
 
-        private static ClickableTextureComponent scheduleButton;
-        private static ClickableTextureComponent friendshipButton;
+        private static Rectangle scheduleButton;
+        private static Rectangle friendshipButton;
         public static void ToggleSchedulePage(ProfileMenu profileMenu)
         {
             if (isOpen)
@@ -132,45 +132,43 @@ namespace NPCSchedulers.UI
                 SpriteText.drawStringWithScrollCenteredAt(b, nPC.displayName, (int)characterNamePosition.X, (int)characterNamePosition.Y);
                 //기본 UI
 
-                ClickableTextureComponent nextCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + width - 32 - 48, yPositionOnScreen + height - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f)
-                {
-                    myID = 0,
-                    name = "Next Char",
-                    upNeighborID = -99998,
-                    downNeighborID = -99998,
-                    leftNeighborID = -99998,
-                    rightNeighborID = -99998,
-                    region = 500
-                };
-                ClickableTextureComponent previousCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + 32, yPositionOnScreen - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f)
-                {
-                    myID = 0,
-                    name = "Previous Char",
-                    upNeighborID = -99998,
-                    downNeighborID = -99998,
-                    leftNeighborID = -99998,
-                    rightNeighborID = -99998,
-                    region = 500
-                };
-                previousCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X - 64 - previousCharacterButton.bounds.Width / 2;
-                previousCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - previousCharacterButton.bounds.Height / 2;
-                nextCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X + Game1.nightbg.Width + 64 - nextCharacterButton.bounds.Width / 2;
-                nextCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - nextCharacterButton.bounds.Height / 2;
+                // ClickableTextureComponent nextCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + width - 32 - 48, yPositionOnScreen + height - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f)
+                // {
+                //     myID = 0,
+                //     name = "Next Char",
+                //     upNeighborID = -99998,
+                //     downNeighborID = -99998,
+                //     leftNeighborID = -99998,
+                //     rightNeighborID = -99998,
+                //     region = 500
+                // };
+                // ClickableTextureComponent previousCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + 32, yPositionOnScreen - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f)
+                // {
+                //     myID = 0,
+                //     name = "Previous Char",
+                //     upNeighborID = -99998,
+                //     downNeighborID = -99998,
+                //     leftNeighborID = -99998,
+                //     rightNeighborID = -99998,
+                //     region = 500
+                // };
+                // previousCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X - 64 - previousCharacterButton.bounds.Width / 2;
+                // previousCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - previousCharacterButton.bounds.Height / 2;
+                // nextCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X + Game1.nightbg.Width + 64 - nextCharacterButton.bounds.Width / 2;
+                // nextCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - nextCharacterButton.bounds.Height / 2;
 
 
 
-                List<ClickableTextureComponent> clickableTextureComponents = new List<ClickableTextureComponent>
-            {
-                previousCharacterButton,
-                nextCharacterButton,
-            };
-                foreach (ClickableTextureComponent clickableTextureComponent in clickableTextureComponents)
-                {
-                    clickableTextureComponent.draw(b);
-                }
+                //     List<ClickableTextureComponent> clickableTextureComponents = new List<ClickableTextureComponent>
+                // {
+                //     previousCharacterButton,
+                //     nextCharacterButton,
+                // };
+                //     foreach (ClickableTextureComponent clickableTextureComponent in clickableTextureComponents)
+                //     {
+                //         clickableTextureComponent.draw(b);
+                //     }
             }
-
-            DrawFriendshipButton(b);
 
             SpriteText.drawStringWithScrollCenteredAt(b, "Today's Schedule",
                                                        itemDisplayRect.Center.X, itemDisplayRect.Top);
@@ -188,10 +186,29 @@ namespace NPCSchedulers.UI
         /// <summary>
         /// 버튼에 대한 툴팁을 그리는 함수
         /// </summary>
-        public static void drawButtonToolTip(SpriteBatch b, string hoverText, string hoverTitle, int x, int y)
+        public static void DrawTooltip(SpriteBatch b, string text, Rectangle bounds)
         {
-            IClickableMenu.drawHoverText(b, hoverText, Game1.smallFont, x, y, -1, hoverTitle, -1, null, null, 0, null, -1, -1);
+            int x = (int)Utility.ModifyCoordinateForUIScale(Game1.getMouseX());
+            int y = (int)Utility.ModifyCoordinateForUIScale(Game1.getMouseY());
+            // 1️⃣ 마우스가 영역 안에 있는지 확인
+            if (bounds.Contains(x, y))
+            {
+                // 2️⃣ 툴팁 위치 계산
+                int tooltipX = x + 20;  // 마우스 오른쪽에 표시
+                int tooltipY = y + 20;  // 마우스 아래쪽에 표시
+
+                // 3️⃣ 화면 경계를 벗어나지 않도록 조정
+                if (tooltipX + bounds.Width > Game1.viewport.Width)
+                    tooltipX -= bounds.Width;  // 오른쪽 경계 벗어나면 왼쪽으로 이동
+
+                if (tooltipY + bounds.Height > Game1.viewport.Height)
+                    tooltipY -= bounds.Height;  // 아래쪽 경계 벗어나면 위로 이동
+
+                // 4️⃣ 툴팁 배경 & 텍스트 그리기
+                IClickableMenu.drawHoverText(b, text, Game1.smallFont, tooltipX, tooltipY);
+            }
         }
+
         // 🔹 클릭 이벤트 처리 추가
         public override void LeftClick(int x, int y)
         {
@@ -244,33 +261,40 @@ namespace NPCSchedulers.UI
             int buttonX = menu.xPositionOnScreen + 480;
             int buttonY = menu.yPositionOnScreen + 50;
 
-            scheduleButton = new ClickableTextureComponent(
-                new Rectangle(buttonX, buttonY, 64, 64),
-                Game1.mouseCursors,
-                new Rectangle(16, 368, 16, 16),
-                4f);
-            friendshipButton = new ClickableTextureComponent(
-                new Rectangle(buttonX + 64, buttonY, 64, 64),
-                Game1.mouseCursors,
-                new Rectangle(16, 368, 16, 16),
-                4f);
+            scheduleButton = new Rectangle(buttonX, buttonY, 64, 64);
+            friendshipButton = new Rectangle(buttonX + 64, buttonY, 64, 64);
         }
+        private static void DrawDialogButton(SpriteBatch b, Rectangle bounds, string text, bool disable = false)
+        {
+            float alpha = disable ? 0.5f : 1.0f; // 🔹 비활성화 상태면 50% 투명도
 
-        public static void DrawFriendshipButton(SpriteBatch b)
-        {
-            friendshipButton?.draw(b);
+            // 다이얼로그 박스 배경
+            IClickableMenu.drawTextureBox(
+                b, Game1.menuTexture, new Rectangle(0, 256, 60, 60),
+                bounds.X - 10, bounds.Y - 10, bounds.Width + 20, bounds.Height + 20,
+                Color.White * alpha, 1f, false // 🔹 Opacity 적용
+            );
+
+
+            // 버튼 텍스트 (비활성화일 경우 회색으로 표시)
+            Utility.drawTextWithShadow(
+                b, text, Game1.smallFont,
+                new Vector2(bounds.X + bounds.Width / 2 - Game1.smallFont.MeasureString(text).X / 2, bounds.Y + bounds.Height + 5),
+                disable ? Color.Gray * alpha : Color.Black
+            );
         }
-        public static void DrawScheduleButton(SpriteBatch b)
+        public static void DrawButton(SpriteBatch b)
         {
-            scheduleButton?.draw(b);
+            DrawDialogButton(b, scheduleButton, "Scheduler");
+            DrawDialogButton(b, friendshipButton, "<3", isOpen);
         }
         public static bool IsOpenFriendshipList(int x, int y)
         {
-            return friendshipButton != null && friendshipButton.bounds.Contains(x, y);
+            return friendshipButton.Contains(x, y);
         }
         public static bool IsOpenPage(int x, int y)
         {
-            return scheduleButton != null && scheduleButton.bounds.Contains(x, y);
+            return scheduleButton.Contains(x, y);
         }
     }
 }

@@ -119,7 +119,7 @@ namespace NPCSchedulers
         {
             if (Game1.activeClickableMenu is ProfileMenu profileMenu)
             {
-                SchedulePage.DrawScheduleButton(Game1.spriteBatch);
+                SchedulePage.DrawButton(Game1.spriteBatch);
             }
         }
 

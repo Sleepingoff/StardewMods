@@ -33,5 +33,7 @@
         "cancel_button": "Cancel changes and revert to the previous state.",
         "delete_button": "Delete the selected schedule entry.",
         "toggle_user_original": "Switch between user-edited and original schedule data."
-    }
+    },
+    "button.save": "Save",
+    "button.cancel": "Cancel"
 }

@@ -86,7 +86,7 @@ namespace NPCSchedulers.UI
             int offsetX = editBox.X + 10 + 200;
             int offsetY = editBox.Y + 10;
 
-            timeTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Time"), entry.Time.ToString() ?? "");
+            timeTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Time").Default("Time"), entry.Time.ToString() ?? "");
             offsetY += 50;
 
             //locationOptions
@@ -94,9 +94,9 @@ namespace NPCSchedulers.UI
             locationSlider.bounds.Width = 400;
             locationSlider.value = (int)(locationOptions.IndexOf(entry.Location) / (float)locationOptions.Count * 99);
             offsetY += 50;
-            xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate"), entry.X.ToString() ?? "");
+            xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate").Default("X"), entry.X.ToString() ?? "");
             offsetY += 50;
-            yTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.YCoordinate"), entry.Y.ToString() ?? "");
+            yTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.YCoordinate").Default("Y"), entry.Y.ToString() ?? "");
             offsetY += 50;
             directionSlider = new OptionsSlider("", 0, offsetX, 0);
             directionSlider.value = (int)(entry.Direction / 4f * 99);
@@ -106,12 +106,12 @@ namespace NPCSchedulers.UI
             actionSlider.bounds.Width = 400;
             actionSlider.value = (int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99);
             offsetY += 50;
-            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk"), entry.Talk ?? "");
+            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk").Default("Talk"), entry.Talk ?? "");
             offsetY += 50;
             // 🔹 저장 및 취소 버튼
             // 🔹 저장 및 취소 버튼 (텍스트 버튼)
-            saveButton = new ClickableComponent(new Rectangle((int)position.X + 120, offsetY, 80, 32), "Save");
-            cancelButton = new ClickableComponent(new Rectangle((int)position.X, offsetY, 80, 32), "Cancel");
+            saveButton = new ClickableComponent(new Rectangle((int)position.X + 120, offsetY, 80, 32), i18n.Get("button.save").Default("Save"));
+            cancelButton = new ClickableComponent(new Rectangle((int)position.X, offsetY, 80, 32), i18n.Get("button.cancel").Default("Cancel"));
 
 
             return new List<OptionsElement> {
@@ -140,7 +140,7 @@ namespace NPCSchedulers.UI
             offsetY += 50;
 
             // 🔹 기존 `foreach`에서 하던 위치 계산을 그대로 적용
-            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Location"), new Vector2(offsetX, offsetY - 10), Color.Black);
+            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Location").Default("Location"), new Vector2(offsetX, offsetY - 10), Color.Black);
             locationSlider.draw(b, 0, 0);
             locationSlider.bounds.Y = offsetY + 10;
             index = Math.Clamp((int)(locationSlider.value / 99f * locationOptions.Count), 0, locationOptions.Count - 1);
@@ -157,14 +157,14 @@ namespace NPCSchedulers.UI
             yTextBox.draw(b, offsetX, offsetY);
             offsetY += 50;
 
-            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Direction"), new Vector2(offsetX, offsetY - 10), Color.Black);
+            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Direction").Default("Direction"), new Vector2(offsetX, offsetY - 10), Color.Black);
             directionSlider.draw(b, 0, 0);
             directionSlider.bounds.Y = offsetY + 10;
             index = Math.Clamp((int)Math.Round(directionSlider.value / 99f * directionOptions.Count), 0, directionOptions.Count - 1);
             b.DrawString(Game1.smallFont, directionOptions[index], new Vector2(offsetX, offsetY + 10), Color.Gray);
             offsetY += 50;
 
-            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Action"), new Vector2(offsetX, offsetY - 10), Color.Black);
+            b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Action").Default("Action"), new Vector2(offsetX, offsetY - 10), Color.Black);
             actionSlider.draw(b, 0, 0);
             actionSlider.bounds.Y = offsetY + 10;
             string npcName = uiStateManager.CurrentNPC.Name;
