@@ -25,6 +25,8 @@ namespace NPCSchedulers.Store
 
         //현재 날짜를 기준으로 만들어진 스케줄 딕셔너리
         public ScheduleDataType ScheduleData { get; private set; } = null;
+
+        public Dictionary<string, bool> mailCondition { get; private set; } = new();
         private Dictionary<string, FriendshipUIStateHandler> friendshipHandler;
         private readonly DateUIStateHandler dateHandler;
         private string filter { get; set; } = "all";
@@ -56,7 +58,7 @@ namespace NPCSchedulers.Store
         // 🔹 스케줄 페이지 열고 닫기
         public void ToggleEditMode(string scheduleKey = null)
         {
-            IsEditMode = scheduleKey != null;
+            IsEditMode = !IsEditMode;
             EditedScheduleKey = IsEditMode ? scheduleKey : null;
             if (IsEditMode && ScheduleKey != null)
                 friendshipHandler[ScheduleKey].GetData();
@@ -137,9 +139,19 @@ namespace NPCSchedulers.Store
 
         #region mail
         //v0.0.3 + 메일관련 UIStateManager 추가
-        public List<string> GetMailCondition()
+        public List<string> GetMailList()
         {
-            return ScheduleData[ScheduleKey].Item3;
+            return ScheduleData[ScheduleKey].Item3 ?? new();
+        }
+        public void SetMailList(string mailKey)
+        {
+            List<string> mailList = GetMailList();
+            if (!mailList.Contains(mailKey))
+            {
+                mailList.Add(mailKey);
+            }
+            initMailCondition(mailList);
+            SetMailCondition(mailList);
         }
 
         public void SetMailCondition(List<string> mailKeys)
@@ -156,19 +168,29 @@ namespace NPCSchedulers.Store
                 Game1.MasterPlayer.mailReceived.Contains(mailKey) ||
                 NetWorldState.checkAnywhereForWorldStateID(mailKey));
         }
+        public void initMailCondition(List<string> mailKeys)
+        {
+            mailCondition = mailCondition ?? new Dictionary<string, bool>();
+            foreach (string mailKey in mailKeys)
+            {
+                if (mailKey != null && !mailCondition.ContainsKey(mailKey)) mailCondition.Add(mailKey, false);
+
+            }
+        }
 
         //mailKey를 받았는지 확인 메일키와 받은 여부를 Dictionary로 만들기
         public Dictionary<string, bool> GetMailCondition(List<string> mailKeys)
         {
-            Dictionary<string, bool> mailCondition = new();
-            foreach (string mailKey in mailKeys)
-            {
-                bool isReceived = Game1.MasterPlayer.mailReceived.Contains(mailKey) || NetWorldState.checkAnywhereForWorldStateID(mailKey);
-                mailCondition.Add(mailKey, isReceived);
-            }
             return mailCondition;
         }
-
+        //각 메일키별로 토글
+        public void ToggleMailCondition(string mailKey)
+        {
+            if (mailCondition.ContainsKey(mailKey))
+            {
+                mailCondition[mailKey] = !mailCondition[mailKey];
+            }
+        }
 
         #endregion
 
@@ -257,7 +279,7 @@ namespace NPCSchedulers.Store
         {
             var friendship = GetFriendshipCondition();
             var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
-            var mailEntry = GetMailCondition();
+            var mailEntry = GetMailList();
             ScheduleData[ScheduleKey] = (friendshipEntry, newEntries, mailEntry);
             InitScheduleData();
             ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);

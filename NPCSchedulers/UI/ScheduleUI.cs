@@ -14,22 +14,29 @@ namespace NPCSchedulers.UI
     public class ScheduleUI : UIBase
     {
         private UIStateManager uiStateManager;
-        private static ScheduleEditUI scheduleEditUI;
+        public static ScheduleEditUI scheduleEditUI;
         private string scheduleKey;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
-
+        private List<string> mailKeys = new List<string>();
+        private Dictionary<string, bool> mailCondition = new Dictionary<string, bool>();
         private FriendshipTargetUI friendshipTargetUI;
+        private MailTargetUI mailTargetUI;
         private Rectangle scheduleBox;
+        public Rectangle Bounds => scheduleBox;
         public int Height = 80;
         public ScheduleUI(Vector2 position, string scheduleKey, UIStateManager uiStateManager)
         {
             this.uiStateManager = uiStateManager;
             this.scheduleKey = scheduleKey;
             this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
-            // 🔹 스케줄 박스 크기 설정
-            scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
+
+            // 🔹 스케줄 박스 크기 설정    
             friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y + 60), uiStateManager);
-            Height = entries.Count * Height + friendshipTargetUI.Height + 200;
+            mailTargetUI = new MailTargetUI(new Vector2((int)position.X, (int)position.Y + 60 + friendshipTargetUI.Height), uiStateManager);
+            Height = entries.Count * Height + mailTargetUI.Height + friendshipTargetUI.Height + 250 + (uiStateManager.IsEditMode ? 600 : 0);
+            scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
+
+
         }
 
         public override bool Draw(SpriteBatch b)
@@ -48,17 +55,19 @@ namespace NPCSchedulers.UI
                     break;
                 }
             }
-            SpriteText.drawString(b, $"{scheduleKey}", (int)titleDisplayPosition.X, (int)titleDisplayPosition.Y, layerDepth: 0.1f, color: keyColor);
             int yOffset = scheduleBox.Y + 60;
+
+            SpriteText.drawString(b, $"{scheduleKey}", (int)titleDisplayPosition.X, (int)titleDisplayPosition.Y, layerDepth: 0.1f, color: keyColor);
+            mailTargetUI.Draw(b);
+            yOffset += mailTargetUI.Height;
             friendshipTargetUI.Draw(b);
-            Height = entries.Count * Height + friendshipTargetUI.Height + 200;
             yOffset += friendshipTargetUI.Height;
             // 🔹 여러 개의 상세 스케줄 출력 (각 항목마다 삭제 버튼 포함)
 
             Vector2 detailDisplayPosition = new Vector2(scheduleBox.X, 0);
             foreach (var entry in entries)
             {
-                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset, scheduleBox.Width, scheduleBox.Height);
+                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset, scheduleBox.Width, 80);
                 DrawBorder(b, detailDisplay, 3, Color.Brown);
 
                 // 🔹 기존 UI 스타일 유지 (반투명 박스 + 테두리)
@@ -81,7 +90,7 @@ namespace NPCSchedulers.UI
                     scheduleEditUI.position = new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80);
                     scheduleEditUI?.Draw(b);
                     yOffset += 600;
-                    return false;
+
                 }
 
                 yOffset += 100; // 🔹 각 스케줄 간격 유지
@@ -107,9 +116,23 @@ namespace NPCSchedulers.UI
                 scheduleEditUI?.LeftClick(x, y);
             }
 
+            foreach (var mail in mailKeys)
+            {
+                Rectangle mailButtonBounds = new Rectangle(scheduleBox.Left, yOffset + 10, 32, 32);
+                if (mailButtonBounds.Contains(x, y))
+                {
+                    uiStateManager.ToggleMailCondition(mail);
+
+                    return;
+                }
+
+                yOffset += 50;
+            }
+
             yOffset += friendshipTargetUI.Height;
             foreach (var entry in entries)
             {
+
 
                 Rectangle deleteButtonBounds = new Rectangle(scheduleBox.Right - 40, yOffset + 10, 32, 32);
                 if (deleteButtonBounds.Contains(x, y))
@@ -133,7 +156,6 @@ namespace NPCSchedulers.UI
                 yOffset += 100;
 
             }
-
 
         }
 
@@ -194,9 +216,10 @@ namespace NPCSchedulers.UI
                 var scheduleUIDisplayPosition = new Vector2(position.X, position.Y + yOffset - scrollPosition);
                 var scheduleUi = new ScheduleUI(scheduleUIDisplayPosition, entry.Key, uiStateManager);
                 scheduleEntries.Add(scheduleUi);
+
                 yOffset += scheduleUi.Height;
             }
-            if (uiStateManager.IsEditMode) yOffset += 600;
+
 
             SetMaxScrollPosition(yOffset, viewport.Height);
         }
@@ -204,18 +227,17 @@ namespace NPCSchedulers.UI
         public override bool Draw(SpriteBatch b)
         {
             originButton?.draw(b);
+
             b.DrawString(Game1.smallFont, uiStateManager.GetCurrentFilter(), new Vector2(position.X + viewport.Width - 100, viewport.Top), Color.Gray * 0.5f);
-
-            UpdateSchedules();
-
 
             foreach (var scheduleUI in scheduleEntries)
             {
                 base.Draw(b);
                 scheduleUI.Draw(b);
                 base.DrawEnd(b);
+                if (uiStateManager.IsEditMode) ScheduleEditUI.DrawTooltip(b, ScheduleUI.scheduleEditUI);
             }
-
+            UpdateSchedules();
             return false;
         }
 
@@ -236,23 +258,18 @@ namespace NPCSchedulers.UI
             }
             if (upArrow.containsPoint(x, y))
             {
-                Scroll(-1);
                 UpdateSchedules();
             }
-            else if (downArrow.containsPoint(x, y))
+            if (downArrow.containsPoint(x, y))
             {
-                Scroll(1);
                 UpdateSchedules();
             }
-            else
+            foreach (var scheduleUI in scheduleEntries)
             {
-                foreach (var scheduleUI in scheduleEntries)
-                {
+                if (scheduleUI.Bounds.Contains(x, y))
                     scheduleUI.LeftClick(x, y);
-                }
-
-
             }
+
         }
     }
 

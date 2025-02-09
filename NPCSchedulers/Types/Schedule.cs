@@ -33,6 +33,7 @@ namespace NPCSchedulers.Type
             public static class Normal
             {
                 public const string FestivalDay = "{festival}_{day}";  // 패시브 페스티벌 진행 중
+                public const string MarriageDay = "marriage_{dayOfWeek}";  // 결혼한 NPC 전용
                 public const string SeasonDate = "{season}_{day}";  // 특정 날짜 적용 (예: spring_15)
                 public const string DateHearts = "{day}_{hearts}";  // 특정 날짜 + 우정 조건 (예: 11_6)
                 public const string Date = "{day}";  // 특정 날짜 (예: 16)

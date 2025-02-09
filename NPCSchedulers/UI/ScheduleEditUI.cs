@@ -18,7 +18,8 @@ namespace NPCSchedulers.UI
         private string scheduleKey;
         private ClickableComponent saveButton;
         private ClickableComponent cancelButton;
-
+        private ClickableComponent nextButton;
+        private ClickableComponent prevButton;
         private OptionsSlider locationSlider;
         private OptionsSlider directionSlider;
         private OptionsSlider actionSlider;
@@ -26,6 +27,11 @@ namespace NPCSchedulers.UI
         private OptionsTextBox xTextBox;
         private OptionsTextBox yTextBox;
         private OptionsTextBox talkTextBox;
+
+        private static Dictionary<char, List<string>> optionsByLetter = new Dictionary<char, List<string>>();
+        private static List<char> availableLetters = new List<char>();
+        private static char currentLetter = 'A';
+        private static string selectedOption;
         private static List<string> locationOptions = new List<string>();
         private static List<string> directionOptions = new() { "^", ">", "V", "<" };
         private static Dictionary<string, List<string>> actionOptions = new Dictionary<string, List<string>>();
@@ -35,16 +41,33 @@ namespace NPCSchedulers.UI
             this.position = position;
             this.scheduleKey = scheduleKey;
             this.entry = entry;
-            InitializeOptions();
+            InitializeOptions(entry);
             GenerateScheduleOptions(ModEntry.Instance.Helper.Translation);
         }
 
 
-        public static void InitializeOptions()
+        public static void InitializeOptions(ScheduleEntry entry)
         {
+            optionsByLetter.Clear();
             // 🔥 모든 장소 불러오기
             locationOptions = Game1.locationData.Select(loc => loc.Key).ToList();
             locationOptions.Sort();
+
+            foreach (var option in locationOptions)
+            {
+                char firstChar = char.ToUpper(option[0]);
+                if (!char.IsLetter(firstChar)) firstChar = '_'; // 숫자 및 특수문자 그룹
+
+                if (!optionsByLetter.ContainsKey(firstChar))
+                    optionsByLetter[firstChar] = new List<string>();
+
+                optionsByLetter[firstChar].Add(option);
+            }
+
+            availableLetters = optionsByLetter.Keys.OrderBy(c => c).ToList();
+            char currentChar = char.ToUpper(entry.Location[0]);
+            currentLetter = currentChar;
+
             directionOptions = new() { "back", "right", "front", "left" };
             // 🔥 모든 NPC별 액션 불러오기
             actionOptions.Clear();
@@ -64,9 +87,9 @@ namespace NPCSchedulers.UI
 
                 if (npc.Schedule != null)
                 {
-                    foreach (var entry in npc.Schedule.Values)
+                    foreach (var value in npc.Schedule.Values)
                     {
-                        string action = entry.endOfRouteBehavior;
+                        string action = value.endOfRouteBehavior;
 
                         // 🔥 중복 방지 후 추가
                         if (!actionOptions[npc.Name].Contains(action ?? "None"))
@@ -75,6 +98,34 @@ namespace NPCSchedulers.UI
                         }
                     }
                 }
+            }
+        }
+        private void ChangeLetter(int direction)
+        {
+            int currentIndex = availableLetters.IndexOf(currentLetter);
+            int newIndex = (currentIndex + direction) % availableLetters.Count;
+
+            if (newIndex < 0)
+            {
+                newIndex = availableLetters.Count - 1;
+            }
+
+            if (newIndex >= 0 && newIndex < availableLetters.Count)
+            {
+                currentLetter = availableLetters[newIndex];
+                locationSlider.value = 0; // 그룹 변경 시 슬라이더 초기화
+            }
+        }
+        private void UpdateIndexFromSlider()
+        {
+            if (optionsByLetter.ContainsKey(currentLetter))
+            {
+                var currentOptions = optionsByLetter[currentLetter];
+
+                int selectedIndex = (int)((locationSlider.value / 99.0) * (currentOptions.Count - 1));
+                selectedIndex = Math.Clamp(selectedIndex, 0, currentOptions.Count - 1);
+
+                selectedOption = currentOptions[selectedIndex];
             }
         }
         private List<OptionsElement> GenerateScheduleOptions(ITranslationHelper i18n)
@@ -91,8 +142,12 @@ namespace NPCSchedulers.UI
 
             //locationOptions
             locationSlider = new OptionsSlider("", 0, offsetX, 0);
-            locationSlider.bounds.Width = 400;
-            locationSlider.value = (int)(locationOptions.IndexOf(entry.Location) / (float)locationOptions.Count * 99);
+            locationSlider.bounds.Width = 250;
+            locationSlider.value = Math.Clamp((int)(optionsByLetter[currentLetter].IndexOf(entry.Location) / (float)optionsByLetter[currentLetter].Count * 99), 0, optionsByLetter[currentLetter].Count - 1);
+
+            nextButton = new ClickableComponent(new Rectangle(offsetX + 250 + 100, offsetY, 16, 32), ">");
+            prevButton = new ClickableComponent(new Rectangle(offsetX + 250, offsetY, 16, 32), "<");
+
             offsetY += 50;
             xTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.XCoordinate").Default("X"), entry.X.ToString() ?? "");
             offsetY += 50;
@@ -104,7 +159,8 @@ namespace NPCSchedulers.UI
 
             actionSlider = new OptionsSlider("", 0, offsetX, 0);
             actionSlider.bounds.Width = 400;
-            actionSlider.value = (int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99);
+            //v0.0.3 + fix: actionOptions[currentNPC] 범위 초과 오류 수정
+            actionSlider.value = Math.Clamp((int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99), 0, actionOptions[currentNPC].Count - 1);
             offsetY += 50;
             talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk").Default("Talk"), entry.Talk ?? "");
             offsetY += 50;
@@ -126,7 +182,7 @@ namespace NPCSchedulers.UI
         public override bool Draw(SpriteBatch b)
         {
             var i18n = ModEntry.Instance.Helper.Translation;
-
+            UpdateIndexFromSlider();
             // 🔹 배경 박스
             Rectangle editBox = new Rectangle((int)position.X, (int)position.Y, 400, 260);
             int offsetX = editBox.X + 10;
@@ -141,8 +197,16 @@ namespace NPCSchedulers.UI
             b.DrawString(Game1.smallFont, i18n.Get("ScheduleUI.Location").Default("Location"), new Vector2(offsetX, offsetY - 10), Color.Black);
             locationSlider.draw(b, 0, 0);
             locationSlider.bounds.Y = offsetY + 10;
-            index = Math.Clamp((int)(locationSlider.value / 99f * locationOptions.Count), 0, locationOptions.Count - 1);
-            b.DrawString(Game1.smallFont, locationOptions[index], new Vector2(offsetX, offsetY + 10), Color.Gray);
+            nextButton.bounds.Y = offsetY + 10;
+            nextButton.bounds.X = offsetX + 200 + 250 + 100;
+            prevButton.bounds.Y = offsetY + 10;
+            prevButton.bounds.X = offsetX + 200 + 250 + 50;
+
+            b.DrawString(Game1.smallFont, currentLetter.ToString(), new Vector2(offsetX + 200 + 250 + 75, offsetY + 10), Color.Gray);
+            b.DrawString(Game1.smallFont, "<", new Vector2(prevButton.bounds.X, offsetY + 10), Color.Black);
+            b.DrawString(Game1.smallFont, ">", new Vector2(nextButton.bounds.X, offsetY + 10), Color.Black);
+            index = Math.Clamp(((int)(locationSlider.value / 99f * (optionsByLetter[currentLetter].Count))), 0, optionsByLetter[currentLetter].Count - 1);
+            b.DrawString(Game1.smallFont, optionsByLetter[currentLetter][index], new Vector2(offsetX, offsetY + 10), Color.Gray);
             offsetY += 50;
 
             // b.DrawString(Game1.smallFont, "X:", new Vector2(offsetX, offsetY - 15), Color.Black);
@@ -190,21 +254,22 @@ namespace NPCSchedulers.UI
             // 🔹 취소 버튼 렌더링
             b.Draw(Game1.menuTexture, cancelButton.bounds, new Rectangle(0, 256, 64, 64), buttonColor);
             Utility.drawTextWithShadow(b, cancelButton.name, Game1.smallFont, new Vector2(cancelButton.bounds.X + 30, cancelButton.bounds.Y + 8), textColor);
-            b.End();
-            b.Begin();
 
 
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Time").Default("Enter time (format: HHMM, only number)"), timeTextBox.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Location").Default("Select a location by moving the slider."), locationSlider.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), xTextBox.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), yTextBox.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Direction").Default("Choose the NPC's facing direction using the slider."), directionSlider.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Action").Default("Select an action for the NPC using the slider."), actionSlider.bounds);
-            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Talk").Default("Enter the dialogue NPC will say upon arrival."), talkTextBox.bounds);
-            b.End();
-            b.Begin();
+
 
             return false;
+        }
+        public static void DrawTooltip(SpriteBatch b, ScheduleEditUI instance)
+        {
+            var i18n = ModEntry.Instance.Helper.Translation;
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Time").Default("Enter time (format: HHMM, only number)"), instance.timeTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Location").Default("Select a location by moving the slider."), instance.locationSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), instance.xTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Coordinate").Default("Enter X and Y coordinates for precise positioning. (format: only number)"), instance.yTextBox.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Direction").Default("Choose the NPC's facing direction using the slider."), instance.directionSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Action").Default("Select an action for the NPC using the slider."), instance.actionSlider.bounds);
+            SchedulePage.DrawTooltip(b, i18n.Get("tooltip.Talk").Default("Enter the dialogue NPC will say upon arrival."), instance.talkTextBox.bounds);
         }
 
         public override void LeftHeld(int x, int y)
@@ -223,6 +288,9 @@ namespace NPCSchedulers.UI
             if (locationSlider.bounds.Contains(x, y)) locationSlider.receiveLeftClick(x, y);
             if (actionSlider.bounds.Contains(x, y)) actionSlider.receiveLeftClick(x, y);
             if (directionSlider.bounds.Contains(x, y)) directionSlider.receiveLeftClick(x, y);
+
+            if (nextButton.bounds.Contains(x, y)) { ChangeLetter(1); }
+            if (prevButton.bounds.Contains(x, y)) { ChangeLetter(-1); }
             // 🔹 저장 버튼 클릭 → 변경사항 반영
             if (saveButton.containsPoint(x, y))
             {

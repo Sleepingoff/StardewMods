@@ -20,5 +20,18 @@
     "ScheduleUI.ScheduleAdded": "스케줄이 추가되었습니다!",
     "ScheduleUI.InvalidInput": "잘못된 입력 값입니다!",
     "ScheduleUI.ScheduleRemoved": "스케줄이 삭제되었습니다!",
-    "ScheduleUI.NoScheduleToRemove": "삭제할 스케줄이 없습니다!"
+    "ScheduleUI.NoScheduleToRemove": "삭제할 스케줄이 없습니다!",
+    "tooltip.Scheduler": "NPC 스케줄을 편집하려면 클릭하세요.",
+    "tooltip.Time": "슬라이더를 사용하여 시간을 조정하세요.\n (형식: HHMM, 숫자만 입력)",
+    "tooltip.Location": "슬라이더를 이동하여 위치를 선택하세요.",
+    "tooltip.Coordinate": "정확한 위치를 위해 X와 Y 좌표를 입력하세요.\n(형식: 숫자만 입력)",
+    "tooltip.Direction": "슬라이더를 사용하여 NPC의 방향을 선택하세요.",
+    "tooltip.Action": "슬라이더를 사용하여 NPC의 행동을 선택하세요.",
+    "tooltip.Talk": "NPC가 도착 시 말할 대사를 입력하세요.",
+    "tooltip.Save": "현재 스케줄 변경 사항을 저장하세요.",
+    "tooltip.Cancel": "변경 사항을 취소하고 이전 상태로 되돌립니다.",
+    "tooltip.Delete": "선택한 스케줄 항목을 삭제하세요.",
+    "tooltip.Toggle": "사용자 편집 스케줄과 원본 스케줄 데이터를 전환합니다.",
+    "button.save": "저장하기",
+    "button.cancel": "취소하기"
 }

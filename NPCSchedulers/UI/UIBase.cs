@@ -71,25 +71,7 @@ namespace NPCSchedulers.UI
         }
         public override void LeftClick(int x, int y)
         {
-            if (!IsVisible) return;
 
-            // 🔹 스크롤 버튼 클릭 감지
-            if (upArrow.containsPoint(x, y))
-            {
-                Scroll(-1);
-            }
-            else if (downArrow.containsPoint(x, y))
-            {
-                Scroll(1);
-            }
-            else
-            {
-                // 🔹 리스트 내부 요소 클릭 전달
-                foreach (var element in elements)
-                {
-                    element.LeftClick(x, y);
-                }
-            }
         }
 
         public void Scroll(int direction)

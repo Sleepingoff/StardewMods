@@ -175,9 +175,7 @@ namespace NPCSchedulers.UI
 
         public override bool Draw(SpriteBatch b)
         {
-            NPC currentNPC = uiStateManager.CurrentNPC;
-            SpriteText.drawStringWithScrollCenteredAt(b, currentNPC.Name, viewport.Center.X, viewport.Top - 60);
-
+            b.DrawString(Game1.dialogueFont, "Friendship List", new Vector2(position.X + 100, position.Y - 50), Color.Black);
             base.Draw(b);
             UpdateFriendshipUI();
             foreach (var friendshipUI in friendshipUIs)

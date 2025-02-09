@@ -10,6 +10,6 @@ C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\
 C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\NPCSchedulers.deps.json
 C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\NPCSchedulers.dll
 C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.dll
-C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\i18n\default.json
 C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\i18n\ko.json
 C:\Users\이지현\Desktop\Stardew Mod\NPCSchedulers\obj\Debug\NPCSchedulers.sourcelink.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCSchedulers\i18n\en.json

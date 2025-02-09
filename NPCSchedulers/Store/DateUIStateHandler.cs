@@ -5,7 +5,7 @@ namespace NPCSchedulers.Store
     public class DateUIStateHandler : BaseUIStateHandler<(string, int)>
     {
         public static readonly List<string> seasons = new() { "Spring", "Summer", "Fall", "Winter", "Rain", "Festival" };
-        private string selectedSeason = "Spring";
+        public static string selectedSeason = "Spring";
         private int selectedDate = 1;
 
         public DateUIStateHandler(string npcName, string scheduleKey) : base(npcName, scheduleKey)

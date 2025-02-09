@@ -52,6 +52,7 @@
     <!-- UI 관련 파일 -->
     <Compile Include="UI\UIBase.cs" />
     <Compile Include="UI\ScheduleUIElements.cs" />
+    <Compile Include="UI\MailUI.cs" />
     <Compile Include="UI\FriendshipUI.cs" />
     <Compile Include="UI\ScheduleDateUI.cs" />
     <Compile Include="UI\ScheduleEditUI.cs" />

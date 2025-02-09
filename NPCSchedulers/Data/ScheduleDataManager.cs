@@ -110,7 +110,7 @@ namespace NPCSchedulers
                     if (finalSchedule.ContainsKey(key))
                     {
                         filteredSchedule[key] = finalSchedule[key];
-                        break;
+
                     }
                 }
             }
@@ -120,7 +120,9 @@ namespace NPCSchedulers
                 List<string> festivalKeys = new List<string>
         {
             $"{ScheduleType.ScheduleKeyType.Normal.FestivalDay.Replace("{day}", day.ToString())}",  // "festival_{day}"
-            ScheduleType.ScheduleKeyType.Normal.Default  // "default"
+           //marriage로 시작하는 키
+            $"{ScheduleType.ScheduleKeyType.Normal.MarriageDay.Replace("{dayOfWeek}", dayOfWeek)}",  // "marriage_{dayOfWeek}"
+         
         };
 
                 foreach (var key in festivalKeys)
@@ -128,7 +130,6 @@ namespace NPCSchedulers
                     if (finalSchedule.ContainsKey(key))
                     {
                         filteredSchedule[key] = finalSchedule[key];
-                        break;
                     }
                 }
             }
@@ -141,7 +142,8 @@ namespace NPCSchedulers
                         $"{ScheduleType.ScheduleKeyType.Normal.Date.Replace("{day}", day.ToString())}",  // "{day}" (예: "16")
 
                         $"{ScheduleType.ScheduleKeyType.Normal.SeasonDay.Replace("{season}", season.ToLower()).Replace("{dayOfWeek}", dayOfWeek)}",  // "{season}_{dayOfWeek}" (예: "spring_Mon")
-
+                        //marriage로 시작하는 키
+                        $"{ScheduleType.ScheduleKeyType.Normal.MarriageDay.Replace("{dayOfWeek}", dayOfWeek)}",  // "marriage_{dayOfWeek}"
                         $"{ScheduleType.ScheduleKeyType.Normal.Day.Replace("{dayOfWeek}", dayOfWeek)}",  // "{dayOfWeek}" (예: "Mon")
 
                         $"{ScheduleType.ScheduleKeyType.Normal.Season.Replace("{season}", season.ToLower())}",  // "{season}" (예: "spring")
@@ -164,11 +166,9 @@ namespace NPCSchedulers
                     if (finalSchedule.ContainsKey(key))
                     {
                         filteredSchedule[key] = finalSchedule[key];
-                        break;
                     }
                 }
             }
-
             return filteredSchedule;
         }
 
@@ -189,7 +189,8 @@ namespace NPCSchedulers
                     // 🔹 `finalSchedule`에 존재하지 않는 경우만 추가
                     if (!finalSchedule.ContainsKey(scheduleKey))
                     {
-                        finalSchedule[scheduleKey] = ParseScheduleEntries(npcName, scheduleKey, scheduleValue);
+                        var result = ParseScheduleEntries(npcName, scheduleKey, scheduleValue);
+                        finalSchedule.Add(result.Item1.ScheduleKey, result);
                     }
                 }
             }
@@ -210,7 +211,8 @@ namespace NPCSchedulers
                 {
                     if (!finalSchedule.ContainsKey(userKey)) // 🔹 중복 추가 방지
                     {
-                        finalSchedule[userKey] = ParseScheduleEntries(npcName, userKey, userNpcData.RawData[userKey]);
+                        var result = ParseScheduleEntries(npcName, userKey, userNpcData.RawData[userKey]);
+                        finalSchedule.Add(result.Item1.ScheduleKey, result);
                     }
                 }
             }
@@ -275,52 +277,24 @@ namespace NPCSchedulers
         private static (FriendshipConditionEntry, List<ScheduleEntry>, List<string>) ParseScheduleEntries(string npcName, string key, string scheduleData)
         {
             List<ScheduleEntry> entries = new();
-            FriendshipConditionEntry friendshipCondition = null;
+            FriendshipConditionEntry friendshipCondition = new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>());
             //v0.0.3 + 메일 파싱 추가
             List<string> mailKeys = new(); // 📌 메일 키만 저장
-
+            bool isMail = false;
+            string gotoKey = null;
             if (string.IsNullOrWhiteSpace(scheduleData)) return (friendshipCondition, entries, mailKeys);
 
             string[] scheduleParts = scheduleData.Split('/');
             int i = 0; // 루프 인덱스
-
+                       // 📌 일반 스케줄 엔트리 추가
+            string entryKey = null;
             while (i < scheduleParts.Length)
             {
                 var part = scheduleParts[i];
                 string[] elements = part.Split(' ');
-                if (elements.Length == 0)
-                {
-                    i++;
-                    continue;
-                }
 
-                // 📌 MAIL 조건 처리 (메일 키만 저장, 즉시 체크 X)
-                if (elements.Length > 1 && elements[0] == "MAIL")
-                {
-                    for (int k = 1; k < elements.Length; k++)
-                    {
-                        mailKeys.Add(elements[k]); // 🔹 메일 키 리스트에 추가
-                    }
+                if (elements.Length == 0) break;
 
-                    // 📌 메일을 받지 않았을 때의 스케줄 (무조건 1개)
-                    if (i + 1 < scheduleParts.Length)
-                    {
-                        string notReceivedSchedule = scheduleParts[i + 1];
-                        string notReceivedKey = $"{key}/{i}_not_received";
-                        entries.Add(ParseScheduleEntry(notReceivedKey, notReceivedSchedule));
-                    }
-
-                    // 📌 메일을 받았을 경우, 나머지 스케줄을 재귀적으로 추가
-                    if (i + 2 < scheduleParts.Length)
-                    {
-                        string remainingSchedules = string.Join("/", scheduleParts.Skip(i + 2));
-                        var (_, receivedEntries, receivedMailKeys) = ParseScheduleEntries(npcName, $"{key}/{i}_received", remainingSchedules);
-                        entries.AddRange(receivedEntries);
-                        mailKeys.AddRange(receivedMailKeys);
-                    }
-
-                    break; // 📌 MAIL 조건 이후는 처리 완료했으므로 종료
-                }
 
                 // 📌 Friendship 조건 처리
                 if (elements[0] == "NOT" && elements[1] == "friendship" && elements.Length >= 4)
@@ -329,37 +303,60 @@ namespace NPCSchedulers
                     i++;
                     continue;
                 }
-
-                // 📌 GOTO 처리
-                if (elements[0] == "GOTO")
+                else if (elements[0] == "GOTO")
                 {
-                    string gotoKey = elements[1];
+                    gotoKey = elements[1];
+                    if (gotoKey == "season") gotoKey = DateUIStateHandler.selectedSeason.ToLower();
+                    if (gotoKey == "NO_SCHEDULE") gotoKey = ScheduleType.ScheduleKeyType.Normal.Default;
                     var finalSchedule = GetScheduleByKeys(npcName, gotoKey, key);
+                    //default로 실패하면 always로 재시도
+                    if (finalSchedule.Count == 0 && gotoKey == ScheduleType.ScheduleKeyType.Normal.Default)
+                    {
+                        gotoKey = ScheduleType.ScheduleKeyType.Normal.Always;
+                        finalSchedule = GetScheduleByKeys(npcName, gotoKey, key);
+                    }
                     if (finalSchedule.TryGetValue(gotoKey, out var gotoScheduleData))
                     {
+                        if (isMail)
+                        {
+                            //for문으로 변경
+                            for (int j = 0; j < gotoScheduleData.Count; j++)
+                            {
+                                gotoScheduleData[j].Key = gotoKey + "/" + j + "/" + key;
+                            }
+                        }
                         entries.AddRange(gotoScheduleData);
                     }
                     i++;
                     continue;
                 }
-
-                if (elements.Length < 5)
+                else if (elements.Length > 1 && elements[0] == "MAIL")
                 {
+                    for (int k = 1; k < elements.Length; k++)
+                    {
+                        mailKeys.Add(elements[k]); // 🔹 메일 키 리스트에 추가
+                    }
+                    isMail = true;
                     i++;
                     continue;
+
                 }
-
-                // 📌 일반 스케줄 엔트리 추가
-                string entryKey = $"{key}/{i}";
-                entries.Add(ParseScheduleEntry(entryKey, part));
-
+                else if (elements.Length > 4)
+                {
+                    entryKey = $"{key}/{i}";
+                    var parsed = ParseScheduleEntry(entryKey, part);
+                    if (isMail)
+                    {
+                        parsed.Key = entryKey + "/" + gotoKey;
+                    }
+                    entries.Add(parsed);
+                }
                 i++;
             }
 
-            return (friendshipCondition ?? new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>()), entries, mailKeys);
+
+            return (friendshipCondition, entries, mailKeys);
         }
-
-
         // 🔹 단일 스케줄 엔트리를 파싱하는 메서드
         private static ScheduleEntry ParseScheduleEntry(string entryKey, string schedulePart)
         {
@@ -399,6 +396,10 @@ namespace NPCSchedulers
                     talk = null;
                 }
             }
+            else if (elements.Length > 5)
+            {
+                action = elements[5];
+            }
 
             return new ScheduleEntry(entryKey, time, location, x, y, direction, action, talk);
         }
@@ -413,14 +414,14 @@ namespace NPCSchedulers
             if (userData.ContainsKey(npcName) && userData[npcName].RawData.ContainsKey(scheduleKey))
             {
                 var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, currentKey, userData[npcName].RawData[scheduleKey], out _);
-                scheduleEntries[scheduleKey] = parsedEntries;
+                scheduleEntries[currentKey] = parsedEntries;
             }
 
             // 🔹 원본 데이터에서 확인
             else if (originalData.ContainsKey(npcName) && originalData[npcName].RawData.ContainsKey(scheduleKey))
             {
                 var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, currentKey, originalData[npcName].RawData[scheduleKey], out _);
-                scheduleEntries[scheduleKey] = parsedEntries;
+                scheduleEntries[currentKey] = parsedEntries;
             }
 
             return scheduleEntries;

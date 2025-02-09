@@ -13,15 +13,18 @@ namespace NPCSchedulers.UI
     {
         private static bool isOpen = false;
         private static bool isOpenFriendshipList = false;
+        private static bool isOpenMailList = false;
 
         private static UIStateManager uiStateManager;
         private static ScheduleListUI scheduleListUI;
 
         private static ScheduleDateUI scheduleDateUI;
         private static FriendshipListUI friendshipListUI;
+        private static MailListUI mailListUI;
 
         private static Rectangle scheduleButton;
         private static Rectangle friendshipButton;
+        private static Rectangle mailButton;
         public static void ToggleSchedulePage(ProfileMenu profileMenu)
         {
             if (isOpen)
@@ -40,10 +43,22 @@ namespace NPCSchedulers.UI
         public static void ToggleFriendshipList()
         {
             isOpenFriendshipList = !isOpenFriendshipList;
+            if (isOpenFriendshipList) isOpenMailList = false;
+
             if (!isOpenFriendshipList) return;
             var displayPosition = UIStateManager.GetMenuPosition();
             var friendshipListUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y + 100);
             friendshipListUI = new FriendshipListUI(friendshipListUIDisplayPosition, uiStateManager);
+        }
+        public static void ToggleMailList()
+        {
+            isOpenMailList = !isOpenMailList;
+            if (isOpenMailList) isOpenFriendshipList = false;
+
+            if (!isOpenMailList) return;
+            var displayPosition = UIStateManager.GetMenuPosition();
+            var friendshipListUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y + 100);
+            mailListUI = new MailListUI(friendshipListUIDisplayPosition, uiStateManager);
         }
         public static bool IsOpen => isOpen;
 
@@ -122,6 +137,7 @@ namespace NPCSchedulers.UI
 
             // 🔹 편집 UI가 활성화되었으면 렌더링
             if (isOpenFriendshipList) friendshipListUI?.Draw(b);
+            else if (isOpenMailList) mailListUI.Draw(b);
             else
             {
 
@@ -170,7 +186,7 @@ namespace NPCSchedulers.UI
                 //     }
             }
 
-            SpriteText.drawStringWithScrollCenteredAt(b, "Today's Schedule",
+            SpriteText.drawStringWithScrollCenteredAt(b, nPC.Name + "'s Schedule",
                                                        itemDisplayRect.Center.X, itemDisplayRect.Top);
             // 🔹 날짜 UI 그리기
             scheduleDateUI?.Draw(b);
@@ -213,18 +229,19 @@ namespace NPCSchedulers.UI
         // 🔹 클릭 이벤트 처리 추가
         public override void LeftClick(int x, int y)
         {
+
             if (!isOpen) return;
 
-            friendshipListUI?.LeftClick(x, y);
-            //!need test
-            // friendshipListUI?.UpdateFriendshipUI();
+            if (isOpenFriendshipList) friendshipListUI?.LeftClick(x, y);
+            if (isOpenMailList) mailListUI?.LeftClick(x, y);
             scheduleDateUI?.LeftClick(x, y);
             scheduleListUI?.LeftClick(x, y);
         }
 
         public override void LeftHeld(int x, int y)
         {
-            friendshipListUI?.LeftHeld(x, y);
+            if (isOpenFriendshipList) friendshipListUI?.LeftHeld(x, y);
+            if (isOpenMailList) mailListUI?.LeftHeld(x, y);
             scheduleDateUI?.LeftHeld(x, y);
             scheduleListUI?.LeftHeld(x, y);
         }
@@ -242,6 +259,10 @@ namespace NPCSchedulers.UI
             else if (isOpenFriendshipList && IsMouseOverUIElement(friendshipListUI, x, y))
             {
                 friendshipListUI?.Scroll(direction);
+            }
+            else if (isOpenMailList && IsMouseOverUIElement(mailListUI, x, y))
+            {
+                mailListUI?.Scroll(direction);
             }
         }
         private bool IsMouseOverUIElement(ListUI uiElement, int mouseX, int mouseY)
@@ -261,6 +282,7 @@ namespace NPCSchedulers.UI
 
             scheduleButton = new Rectangle(buttonX, buttonY, 180, 32);
             friendshipButton = new Rectangle(buttonX + 190, buttonY, 64, 32);
+            mailButton = new Rectangle(buttonX + 190 + 74, buttonY, 64, 32);
         }
         private static void DrawDialogButton(SpriteBatch b, Rectangle bounds, string text, bool disable = false)
         {
@@ -287,6 +309,11 @@ namespace NPCSchedulers.UI
         {
             DrawDialogButton(b, scheduleButton, "Scheduler");
             DrawDialogButton(b, friendshipButton, "<3", !isOpen);
+            DrawDialogButton(b, mailButton, "@", !isOpen);
+        }
+        public static bool IsOpenMailList(int x, int y)
+        {
+            return mailButton.Contains(x, y);
         }
         public static bool IsOpenFriendshipList(int x, int y)
         {

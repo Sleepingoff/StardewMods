@@ -10,7 +10,6 @@ using NPCSchedulers.DATA;
 
 namespace NPCSchedulers
 {
-    //! 이슈: 커서 안 보임 난 리텍 때문에 보이는 듯?
     public class ModEntry : Mod
     {
         private static SchedulePage schedulePage;
@@ -52,9 +51,10 @@ namespace NPCSchedulers
             harmony.Patch(releaseClickMethod, postfix: new HarmonyMethod(typeof(ModEntry), nameof(LeftClickReleased)));
         }
 
-        public static void ReceiveLeftClick(int x, int y)
+        public static bool ReceiveLeftClick(int x, int y)
         {
             schedulePage?.LeftClick(x, y);
+            return !SchedulePage.IsOpen;
         }
         private static double clickHoldTime = 0; // 클릭 지속 시간 (초)
         private static bool isHoldingClick = false;
@@ -99,6 +99,16 @@ namespace NPCSchedulers
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
+
+            //e 혹은 esc를 누르면 스케줄러 창 닫기
+
+            if (SchedulePage.IsOpen && !isProfileMenuOpen)
+            {
+                if (e.Button == SButton.Escape)
+                {
+                    SchedulePage.Close();
+                }
+            }
             if (!isProfileMenuOpen || !(Game1.activeClickableMenu is ProfileMenu profileMenu)) return;
 
             int x = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.X);
@@ -113,6 +123,12 @@ namespace NPCSchedulers
             {
                 SchedulePage.ToggleFriendshipList();
             }
+            else if (SchedulePage.IsOpenMailList(x, y))
+            {
+                SchedulePage.ToggleMailList();
+            }
+
+
         }
 
         private void OnRenderedActiveMenu(object sender, RenderedActiveMenuEventArgs e)
