@@ -77,7 +77,7 @@ namespace NPCSchedulers.Type
 
 
 
-    public class ScheduleDataType : Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)>
+    public class ScheduleDataType : Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>, List<string>)>
     {
 
         public void AddRangeWithoutSameKey(ScheduleDataType other)

@@ -4,6 +4,7 @@ using NPCSchedulers.DATA;
 using NPCSchedulers.Store;
 using NPCSchedulers.Type;
 using StardewValley;
+using StardewValley.Network;
 using StardewValley.Pathfinding;
 
 namespace NPCSchedulers
@@ -232,8 +233,9 @@ namespace NPCSchedulers
         /// <summary>
         /// 특정 NPC의 스케줄을 저장 (유저 데이터로 추가)
         /// </summary>
-        public static void SaveUserSchedule(string npcName, string key, FriendshipConditionEntry friendshipCondition, List<ScheduleEntry> scheduleList)
+        public static void SaveUserSchedule(string npcName, string key, ScheduleDataType scheduleData)
         {
+            var (friendshipCondition, scheduleList, mailKeys) = scheduleData[key];
             Dictionary<string, UserScheduleDataType> userSchedules = UserScheduleData.LoadUserSchedules();
 
             if (!userSchedules.ContainsKey(npcName))
@@ -246,9 +248,12 @@ namespace NPCSchedulers
 
             var newCondition = FriendshipUIStateHandler.FilterData(friendshipCondition.Condition);
             friendshipCondition.Condition = newCondition;
+
+            var formattedMail = FormatMailEntry(mailKeys);
+
             string formattedFriendshipCondition = FormatFriendshipEntry(friendshipCondition);
 
-            string newScheduleEntry = formattedFriendshipCondition + formattedSchedule;
+            string newScheduleEntry = formattedFriendshipCondition + formattedMail + formattedSchedule;
 
             //v0.0.1 ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
             if (formattedSchedule.Length == 0)
@@ -267,90 +272,137 @@ namespace NPCSchedulers
         /// <summary>
         /// 스케줄 데이터를 `FriendshipConditionEntry`와 `ScheduleEntry` 리스트로 변환
         /// </summary>
-        private static (FriendshipConditionEntry, List<ScheduleEntry>) ParseScheduleEntries(string npcName, string key, string scheduleData)
+        private static (FriendshipConditionEntry, List<ScheduleEntry>, List<string>) ParseScheduleEntries(string npcName, string key, string scheduleData)
         {
             List<ScheduleEntry> entries = new();
             FriendshipConditionEntry friendshipCondition = null;
+            //v0.0.3 + 메일 파싱 추가
+            List<string> mailKeys = new(); // 📌 메일 키만 저장
 
-            if (string.IsNullOrWhiteSpace(scheduleData)) return (friendshipCondition, entries);
+            if (string.IsNullOrWhiteSpace(scheduleData)) return (friendshipCondition, entries, mailKeys);
 
             string[] scheduleParts = scheduleData.Split('/');
+            int i = 0; // 루프 인덱스
 
-            for (int i = 0; i < scheduleParts.Length; i++)
+            while (i < scheduleParts.Length)
             {
                 var part = scheduleParts[i];
                 string[] elements = part.Split(' ');
-                if (elements.Length == 0) continue;
+                if (elements.Length == 0)
+                {
+                    i++;
+                    continue;
+                }
 
+                // 📌 MAIL 조건 처리 (메일 키만 저장, 즉시 체크 X)
+                if (elements.Length > 1 && elements[0] == "MAIL")
+                {
+                    for (int k = 1; k < elements.Length; k++)
+                    {
+                        mailKeys.Add(elements[k]); // 🔹 메일 키 리스트에 추가
+                    }
+
+                    // 📌 메일을 받지 않았을 때의 스케줄 (무조건 1개)
+                    if (i + 1 < scheduleParts.Length)
+                    {
+                        string notReceivedSchedule = scheduleParts[i + 1];
+                        string notReceivedKey = $"{key}/{i}_not_received";
+                        entries.Add(ParseScheduleEntry(notReceivedKey, notReceivedSchedule));
+                    }
+
+                    // 📌 메일을 받았을 경우, 나머지 스케줄을 재귀적으로 추가
+                    if (i + 2 < scheduleParts.Length)
+                    {
+                        string remainingSchedules = string.Join("/", scheduleParts.Skip(i + 2));
+                        var (_, receivedEntries, receivedMailKeys) = ParseScheduleEntries(npcName, $"{key}/{i}_received", remainingSchedules);
+                        entries.AddRange(receivedEntries);
+                        mailKeys.AddRange(receivedMailKeys);
+                    }
+
+                    break; // 📌 MAIL 조건 이후는 처리 완료했으므로 종료
+                }
+
+                // 📌 Friendship 조건 처리
                 if (elements[0] == "NOT" && elements[1] == "friendship" && elements.Length >= 4)
                 {
                     friendshipCondition = new FriendshipConditionEntry(npcName, key, new Dictionary<string, int> { { elements[2], int.Parse(elements[3]) } });
+                    i++;
                     continue;
                 }
 
-                // 🔹 GOTO 처리 (재귀적으로 해당 키를 탐색)
+                // 📌 GOTO 처리
                 if (elements[0] == "GOTO")
                 {
                     string gotoKey = elements[1];
-
-                    // 🔹 GOTO 키에 해당하는 스케줄 데이터 가져오기
                     var finalSchedule = GetScheduleByKeys(npcName, gotoKey, key);
                     if (finalSchedule.TryGetValue(gotoKey, out var gotoScheduleData))
                     {
-                        // 🔥 재귀적으로 해당 GOTO 스케줄을 추가
                         entries.AddRange(gotoScheduleData);
                     }
+                    i++;
                     continue;
                 }
 
-                if (elements.Length < 5) continue;
-
-                int.TryParse(elements[0], out int time);
-                string location = elements[1];
-                int.TryParse(elements[2], out int x);
-                int.TryParse(elements[3], out int y);
-                int.TryParse(elements[4], out int direction);
-                string action = null;
-                string talk = null;
-
-                // 🔹 5번째 또는 6번째 요소가 큰따옴표(`"`)로 시작하면 Talk 스케줄로 분류
-                if ((elements.Length > 5 && elements[5].StartsWith("\"")))
+                if (elements.Length < 5)
                 {
-                    action = null;
-                    talk = string.Join(" ", elements.Skip(5)); // 🔥 대사 문자열 결합
-                    talk = talk.Trim('\"'); // 🔥 양쪽 `"` 제거
-
-                    // 🔹 talk이 "Strings"로 시작하면 게임 내 콘텐츠 파일에서 로드
-                    if (talk.StartsWith("Strings"))
-                    {
-                        talk = Game1.content.LoadString(talk);
-                    }
-                    if (string.IsNullOrWhiteSpace(talk))
-                    {
-                        talk = null;
-                    }
+                    i++;
+                    continue;
                 }
-                else if ((elements.Length > 6 && elements[6].StartsWith("\"")))
-                {
-                    action = elements[5];
-                    talk = string.Join(" ", elements.Skip(6)); // 🔥 대사 문자열 결합
-                    talk = talk.Trim('\"'); // 🔥 양쪽 `"` 제거
 
-                    // 🔹 talk이 "Strings"로 시작하면 게임 내 콘텐츠 파일에서 로드
-                    if (talk.StartsWith("Strings"))
-                    {
-                        talk = Game1.content.LoadString(talk);
-                    }
-                    if (string.IsNullOrWhiteSpace(talk))
-                    {
-                        talk = null;
-                    }
-                }
-                entries.Add(new ScheduleEntry(key + "/" + i, time, location, x, y, direction, action, talk));
+                // 📌 일반 스케줄 엔트리 추가
+                string entryKey = $"{key}/{i}";
+                entries.Add(ParseScheduleEntry(entryKey, part));
+
+                i++;
             }
 
-            return (friendshipCondition ?? new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>()), entries);
+            return (friendshipCondition ?? new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>()), entries, mailKeys);
         }
+
+
+        // 🔹 단일 스케줄 엔트리를 파싱하는 메서드
+        private static ScheduleEntry ParseScheduleEntry(string entryKey, string schedulePart)
+        {
+            string[] elements = schedulePart.Split(' ');
+
+            int.TryParse(elements[0], out int time);
+            string location = elements[1];
+            int.TryParse(elements[2], out int x);
+            int.TryParse(elements[3], out int y);
+            int.TryParse(elements[4], out int direction);
+            string action = null;
+            string talk = null;
+
+            // 📌 Talk 스케줄 처리
+            if (elements.Length > 5 && elements[5].StartsWith("\""))
+            {
+                talk = string.Join(" ", elements.Skip(5)).Trim('\"');
+                if (talk.StartsWith("Strings"))
+                {
+                    talk = Game1.content.LoadString(talk);
+                }
+                if (string.IsNullOrWhiteSpace(talk))
+                {
+                    talk = null;
+                }
+            }
+            else if (elements.Length > 6 && elements[6].StartsWith("\""))
+            {
+                action = elements[5];
+                talk = string.Join(" ", elements.Skip(6)).Trim('\"');
+                if (talk.StartsWith("Strings"))
+                {
+                    talk = Game1.content.LoadString(talk);
+                }
+                if (string.IsNullOrWhiteSpace(talk))
+                {
+                    talk = null;
+                }
+            }
+
+            return new ScheduleEntry(entryKey, time, location, x, y, direction, action, talk);
+        }
+
         public static Dictionary<string, List<ScheduleEntry>> GetScheduleByKeys(string npcName, string scheduleKey, string currentKey)
         {
             Dictionary<string, List<ScheduleEntry>> scheduleEntries = new();
@@ -382,6 +434,14 @@ namespace NPCSchedulers
             if (friendshipConditionEntry.Condition.Count == 0) return "";
             return $"NOT friendship {string.Join(" ", friendshipConditionEntry.Condition.Select(c => $"{c.Key} {c.Value}"))}/";
         }
+        /// <summary>
+        /// 메일 조건을 문자열로 변환
+        /// </summary>
+        private static string FormatMailEntry(List<string> mailKeys)
+        {
+            if (mailKeys.Count == 0) return "";
+            return $"MAIL {string.Join(" ", mailKeys)}/";
+        }
 
         /// <summary>
         /// `ScheduleEntry`를 문자열로 변환
@@ -404,48 +464,47 @@ namespace NPCSchedulers
         {
             NPC npc = Game1.getCharacterFromName(npcName);
             if (npc == null) return;
-
-            Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> schedules = GetUserSchedule(npcName);
+            ScheduleDataType schedules = GetUserSchedule(npcName);
             if (schedules.Count == 0) return;
 
             var scheduleKeys = GetEditedScheduleKeys(npcName);
 
-            foreach (string key in scheduleKeys)
+
+            //v0.0.2 + 오늘 스케줄과 같은 키만 수정
+            //v0.0.3 + 스케줄 키가 없는 경우 기본 스케줄로 변경
+            if (!schedules.ContainsKey(npc.ScheduleKey)) return;
+
+            var (_, scheduleList, _) = schedules[npc.ScheduleKey];
+
+
+            foreach (var entry in scheduleList)
             {
-                string todayKey = key;
-                //v0.0.2 + 오늘 스케줄과 같은 키만 수정
-                if (!schedules.ContainsKey(todayKey) && todayKey == npc.ScheduleKey) continue;
+                // 🔹 경로 설정: 현재는 목표 위치 하나만 설정 (추후 개선 가능)
+                Stack<Point> route = new Stack<Point>();
+                route.Push(new Point(entry.X, entry.Y));
 
-                var (condition, scheduleList) = schedules[todayKey];
+                // 🔹 SchedulePathDescription 객체 생성
+                var pathDescription = new SchedulePathDescription(
+                    route,                        // 이동 경로
+                    entry.Direction,              // 방향
+                    entry.Action ?? entry.Action,       // 도착 후 행동 (null 방지)
+                    entry.Talk ?? entry.Talk,             // 도착 후 대사 (null 방지)
+                    entry.Location,               // 도착할 위치
+                    new Point(entry.X, entry.Y)   // 목표 타일
+                );
 
-
-                foreach (var entry in scheduleList)
+                // 🔹 기존 키를 제거하고 다시 추가
+                if (npc.Schedule.ContainsKey(entry.Time))
                 {
-                    // 🔹 경로 설정: 현재는 목표 위치 하나만 설정 (추후 개선 가능)
-                    Stack<Point> route = new Stack<Point>();
-                    route.Push(new Point(entry.X, entry.Y));
-
-                    // 🔹 SchedulePathDescription 객체 생성
-                    var pathDescription = new SchedulePathDescription(
-                        route,                        // 이동 경로
-                        entry.Direction,              // 방향
-                        entry.Action ?? entry.Action,       // 도착 후 행동 (null 방지)
-                        entry.Talk ?? entry.Talk,             // 도착 후 대사 (null 방지)
-                        entry.Location,               // 도착할 위치
-                        new Point(entry.X, entry.Y)   // 목표 타일
-                    );
-
-                    // 🔹 기존 키를 제거하고 다시 추가
-                    if (npc.Schedule.ContainsKey(entry.Time))
-                    {
-                        npc.Schedule.Clear();
-                    }
-                    npc.Schedule.Add(entry.Time, pathDescription);
-                    npc.TryLoadSchedule();
+                    npc.Schedule.Remove(entry.Time);
                 }
+                npc.Schedule.Add(entry.Time, pathDescription);
+
             }
-            Game1.addHUDMessage(new HUDMessage($"{npcName}의 스케줄이 적용되었습니다!", 2));
+            bool loaded = npc.TryLoadSchedule(npc.ScheduleKey);
+            if (loaded) Game1.addHUDMessage(new HUDMessage($"{npcName}의 스케줄이 적용되었습니다!", 2));
         }
+
 
     }
 }

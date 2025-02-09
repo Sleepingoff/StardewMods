@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using NPCSchedulers.DATA;
 using NPCSchedulers.Type;
 using StardewValley;
+using StardewValley.Network;
 
 namespace NPCSchedulers.Store
 {
@@ -133,6 +134,44 @@ namespace NPCSchedulers.Store
             InitScheduleData();
         }
         #endregion
+
+        #region mail
+        //v0.0.3 + 메일관련 UIStateManager 추가
+        public List<string> GetMailCondition()
+        {
+            return ScheduleData[ScheduleKey].Item3;
+        }
+
+        public void SetMailCondition(List<string> mailKeys)
+        {
+            ScheduleData[ScheduleKey] = (ScheduleData[ScheduleKey].Item1, ScheduleData[ScheduleKey].Item2, mailKeys);
+            InitScheduleData();
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
+        }
+
+
+        public bool HasReceivedAllMail(List<string> mailKeys)
+        {
+            return mailKeys.All(mailKey =>
+                Game1.MasterPlayer.mailReceived.Contains(mailKey) ||
+                NetWorldState.checkAnywhereForWorldStateID(mailKey));
+        }
+
+        //mailKey를 받았는지 확인 메일키와 받은 여부를 Dictionary로 만들기
+        public Dictionary<string, bool> GetMailCondition(List<string> mailKeys)
+        {
+            Dictionary<string, bool> mailCondition = new();
+            foreach (string mailKey in mailKeys)
+            {
+                bool isReceived = Game1.MasterPlayer.mailReceived.Contains(mailKey) || NetWorldState.checkAnywhereForWorldStateID(mailKey);
+                mailCondition.Add(mailKey, isReceived);
+            }
+            return mailCondition;
+        }
+
+
+        #endregion
+
         #region  schedule
 
         #region  edit
@@ -218,12 +257,13 @@ namespace NPCSchedulers.Store
         {
             var friendship = GetFriendshipCondition();
             var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
-            ScheduleData[ScheduleKey] = (friendshipEntry, newEntries);
+            var mailEntry = GetMailCondition();
+            ScheduleData[ScheduleKey] = (friendshipEntry, newEntries, mailEntry);
             InitScheduleData();
-            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, friendshipEntry, newEntries);
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
         }
 
-        public void SetScheduleDataByKey(string key, FriendshipConditionEntry friendshipConditionEntry = null, List<ScheduleEntry> newSchedule = null)
+        public void SetScheduleDataByKey(string key, FriendshipConditionEntry friendshipConditionEntry = null, List<ScheduleEntry> newSchedule = null, List<string> mailEntry = null)
         {
 
             if (friendshipConditionEntry == null)
@@ -236,16 +276,21 @@ namespace NPCSchedulers.Store
                 newSchedule = new();
             }
 
+            if (mailEntry == null)
+            {
+                mailEntry = new();
+            }
+
             if (!ScheduleData.ContainsKey(key))
             {
-                ScheduleData.Add(key, (friendshipConditionEntry, newSchedule));
+                ScheduleData.Add(key, (friendshipConditionEntry, newSchedule, mailEntry));
             }
             else
             {
-                ScheduleData[key] = (friendshipConditionEntry, newSchedule);
+                ScheduleData[key] = (friendshipConditionEntry, newSchedule, mailEntry);
             }
             InitScheduleData();
-            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, key, friendshipConditionEntry, newSchedule);
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, key, ScheduleData);
 
         }
 
@@ -287,5 +332,8 @@ namespace NPCSchedulers.Store
             SetScheduleDataByList(scheduleEntries);
         }
         #endregion
+
+
+
     }
 }
