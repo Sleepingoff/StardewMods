@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework;
 using NPCSchedulers.DATA;
 using NPCSchedulers.Type;
+using NPCSchedulers.UI;
 using StardewValley;
 using StardewValley.Network;
 
@@ -11,7 +12,10 @@ namespace NPCSchedulers.Store
     {
         #region field
         public bool IsSchedulePageOpen { get; private set; } = false;
+        // 수정 모드 적용 여부
         public bool IsEditMode { get; private set; } = false;
+        //현재 보여지는 List UI
+        public string CurrentListUI { get; private set; } = "character";
         public NPC CurrentNPC { get; private set; } = null;
 
         //현재 수정 중인 스케줄 키
@@ -28,6 +32,7 @@ namespace NPCSchedulers.Store
 
         public Dictionary<string, bool> mailCondition { get; private set; } = new();
         private Dictionary<string, FriendshipUIStateHandler> friendshipHandler;
+        private Dictionary<string, MailUIStateHandler> mailHandler;
         private readonly DateUIStateHandler dateHandler;
         private string filter { get; set; } = "all";
         #endregion
@@ -40,11 +45,15 @@ namespace NPCSchedulers.Store
             dateHandler = new DateUIStateHandler(CurrentNPC.Name, ScheduleKey);
             // 🔥 scheduleKey마다 friendshipHandler를 개별적으로 관리해야 함
             friendshipHandler = new Dictionary<string, FriendshipUIStateHandler>();
+            mailHandler = new();
 
+            //리스트마다 수행
             foreach (var key in ScheduleDataManager.GetFinalSchedule(CurrentNPC.Name).Keys)
             {
                 friendshipHandler[key] = new FriendshipUIStateHandler(CurrentNPC.Name, key);
+                mailHandler[key] = new MailUIStateHandler(CurrentNPC.Name, key);
             }
+
             InitScheduleData();
         }
         #endregion
@@ -58,12 +67,25 @@ namespace NPCSchedulers.Store
         // 🔹 스케줄 페이지 열고 닫기
         public void ToggleEditMode(string scheduleKey = null)
         {
+            //SchedulePage.IsOpen == false이면 IsEditMode = false
+
             IsEditMode = !IsEditMode;
-            EditedScheduleKey = IsEditMode ? scheduleKey : null;
+            if (!SchedulePage.IsOpen) IsEditMode = false;
+
+            EditedScheduleKey = scheduleKey;
+
             if (IsEditMode && ScheduleKey != null)
+            {
                 friendshipHandler[ScheduleKey].GetData();
+            }
             else InitScheduleData();
         }
+
+        public void ToggleListUI(string uiName = null)
+        {
+            CurrentListUI = uiName;
+        }
+
         public void ToggleScheduleVersion()
         {
             filter = filter == "all" ? "user" : filter == "user" ? "origin" : filter == "origin" ? "all" : "user";
@@ -90,6 +112,11 @@ namespace NPCSchedulers.Store
         #endregion
 
         #region  date
+
+        public void InitDate()
+        {
+            dateHandler.InitData();
+        }
         //string: season ex) Spring, int: date ex) 1
         public (string, int) GetCurrentDate()
         {
@@ -121,10 +148,9 @@ namespace NPCSchedulers.Store
         #region friendship
 
         //key: npcName, value: heartLevel
-        public Dictionary<string, int> GetFriendshipCondition()
+        public Dictionary<string, int> GetFriendshipCondition(string scheduleKey = null)
         {
-            if (ScheduleKey == null) return new();
-            return friendshipHandler[ScheduleKey].GetData();
+            return scheduleKey == null ? new() : friendshipHandler[scheduleKey].GetData();
         }
 
         //key: npcName, value: heartLevel
@@ -133,64 +159,29 @@ namespace NPCSchedulers.Store
             if (ScheduleKey == null) return;
             Dictionary<string, int> data = new Dictionary<string, int> { { name, level } };
             friendshipHandler[ScheduleKey].UpdateData(data);
-            InitScheduleData();
+            SetScheduleData();
         }
         #endregion
 
         #region mail
         //v0.0.3 + 메일관련 UIStateManager 추가
-        public List<string> GetMailList()
+        public Dictionary<string, bool> GetMailCondition(string scheduleKey = null)
         {
-            return ScheduleData[ScheduleKey].Item3 ?? new();
+            return ScheduleKey == null ? new() : mailHandler[ScheduleKey].GetData();
         }
-        public void SetMailList(string mailKey)
+        public Dictionary<string, string> GetMailList(string scheduleKey = null)
         {
-            List<string> mailList = GetMailList();
-            if (!mailList.Contains(mailKey))
-            {
-                mailList.Add(mailKey);
-            }
-            initMailCondition(mailList);
-            SetMailCondition(mailList);
+            return ScheduleKey == null ? new() : mailHandler[ScheduleKey].GetMailList();
         }
 
-        public void SetMailCondition(List<string> mailKeys)
+        public void SetMailCondition(string mailKey, bool condition)
         {
-            ScheduleData[ScheduleKey] = (ScheduleData[ScheduleKey].Item1, ScheduleData[ScheduleKey].Item2, mailKeys);
-            InitScheduleData();
-            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
+            if (ScheduleKey == null) return;
+            Dictionary<string, bool> data = new Dictionary<string, bool> { { mailKey, condition } };
+            mailHandler[ScheduleKey].UpdateData(data);
+            SetScheduleData();
         }
 
-
-        public bool HasReceivedAllMail(List<string> mailKeys)
-        {
-            return mailKeys.All(mailKey =>
-                Game1.MasterPlayer.mailReceived.Contains(mailKey) ||
-                NetWorldState.checkAnywhereForWorldStateID(mailKey));
-        }
-        public void initMailCondition(List<string> mailKeys)
-        {
-            mailCondition = mailCondition ?? new Dictionary<string, bool>();
-            foreach (string mailKey in mailKeys)
-            {
-                if (mailKey != null && !mailCondition.ContainsKey(mailKey)) mailCondition.Add(mailKey, false);
-
-            }
-        }
-
-        //mailKey를 받았는지 확인 메일키와 받은 여부를 Dictionary로 만들기
-        public Dictionary<string, bool> GetMailCondition(List<string> mailKeys)
-        {
-            return mailCondition;
-        }
-        //각 메일키별로 토글
-        public void ToggleMailCondition(string mailKey)
-        {
-            if (mailCondition.ContainsKey(mailKey))
-            {
-                mailCondition[mailKey] = !mailCondition[mailKey];
-            }
-        }
 
         #endregion
 
@@ -216,15 +207,30 @@ namespace NPCSchedulers.Store
 
         public void InitScheduleData()
         {
+            //? issue 생길 수도 있음 창이 닫혔을 때 날짜가 초기화되지 않아서 없는 키 찾을 가능성 있음
+            // InitDate();
             var (season, date) = GetCurrentDate();
+            ScheduleKey = null;
             ScheduleData = ScheduleDataManager.GetFilteredSchedule(CurrentNPC.Name, season, date);
+
         }
+
+        public bool HasKeyInAllScheduleDataWithCurrentNPC(string key)
+        {
+            return ScheduleDataManager.GetAllScheduleKeys(CurrentNPC.Name).Contains(key);
+
+        }
+
+
+
         /// <summary>
         /// 스케줄 리스트 반환
         /// </summary>
 
         public ScheduleDataType GetSchedule()
         {
+            var (season, date) = GetCurrentDate();
+            ScheduleData = ScheduleDataManager.GetFilteredSchedule(CurrentNPC.Name, season, date);
             return ScheduleData;
         }
 
@@ -234,7 +240,10 @@ namespace NPCSchedulers.Store
 
         public List<ScheduleEntry> GetScheduleEntries(string key = null)
         {
-            return ScheduleData[key ?? ScheduleKey].Item2;
+            GetSchedule();
+            if (ScheduleData.ContainsKey(key ?? ScheduleKey))
+                return ScheduleData[key ?? ScheduleKey].Item2;
+            else return new();
         }
 
         /// <summary>
@@ -253,11 +262,10 @@ namespace NPCSchedulers.Store
         public void SetScheduleKey(string newScheduleKey)
         {
             ScheduleKey = newScheduleKey;
-            GetFriendshipCondition();
         }
         public void SetScheduleDataByEntry(ScheduleEntry newEntry, string scheduleKey = null)
         {
-            ScheduleKey = scheduleKey;
+            ScheduleKey = scheduleKey ?? ScheduleKey;
             List<ScheduleEntry> scheduleEntries = GetScheduleEntries(scheduleKey);
             bool isIncludesSameTime = scheduleEntries.Any(entry => entry.Time == newEntry.Time);
 
@@ -279,12 +287,22 @@ namespace NPCSchedulers.Store
         {
             var friendship = GetFriendshipCondition();
             var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
-            var mailEntry = GetMailList();
-            ScheduleData[ScheduleKey] = (friendshipEntry, newEntries, mailEntry);
-            InitScheduleData();
+            var mail = GetMailCondition();
+            var mailEntry = MailUIStateHandler.FilterData(mail).Select(m => m.Key).ToList();
+
+            ScheduleData[ScheduleKey] = (friendshipEntry, new List<ScheduleEntry>(newEntries), mailEntry);
             ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
         }
-
+        public void SetScheduleData()
+        {
+            var friendship = GetFriendshipCondition();
+            var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
+            var newEntries = ScheduleData[ScheduleKey].Item2;
+            var mail = GetMailCondition();
+            var mailEntry = MailUIStateHandler.FilterData(mail).Select(m => m.Key).ToList();
+            ScheduleData[ScheduleKey] = (friendshipEntry, new List<ScheduleEntry>(newEntries), mailEntry);
+            ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
+        }
         public void SetScheduleDataByKey(string key, FriendshipConditionEntry friendshipConditionEntry = null, List<ScheduleEntry> newSchedule = null, List<string> mailEntry = null)
         {
 
@@ -309,9 +327,8 @@ namespace NPCSchedulers.Store
             }
             else
             {
-                ScheduleData[key] = (friendshipConditionEntry, newSchedule, mailEntry);
+                ScheduleData[key] = (friendshipConditionEntry, new List<ScheduleEntry>(newSchedule), mailEntry);
             }
-            InitScheduleData();
             ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, key, ScheduleData);
 
         }

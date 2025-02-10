@@ -1,10 +1,11 @@
 using Microsoft.Xna.Framework;
+using StardewValley;
 using StardewValley.Menus;
 namespace NPCSchedulers.DATA
 {
     public class FriendshipConditionEntry
     {
-        public string ScheduleKey { get; }
+        public string ScheduleKey { get; private set; }
         public string Target { get; }
         public Dictionary<string, int> Condition { get; set; }
 
@@ -24,6 +25,11 @@ namespace NPCSchedulers.DATA
         public void SetCondition(string npcName, int heartLevel)
         {
             Condition = new Dictionary<string, int> { { npcName, heartLevel } };
+        }
+
+        public void SetScheduleKey(string key)
+        {
+            ScheduleKey = key;
         }
 
 
@@ -104,37 +110,53 @@ namespace NPCSchedulers.DATA
             }
         }
 
-        public static List<ScheduleEntry> ParseScheduleEntries(string npcName, string key, string rawSchedule, out FriendshipConditionEntry friendshipCondition)
+        public static List<ScheduleEntry> ParseScheduleEntries(
+            string npcName, string key, string rawSchedule,
+            out (FriendshipConditionEntry friendshipCondition, List<string> mailKeys) scheduleCondition)
         {
             List<ScheduleEntry> entries = new();
-            friendshipCondition = null;
+            Dictionary<string, int> friendshipConditions = new();
+            List<string> mailKeys = new();
 
-            if (string.IsNullOrWhiteSpace(rawSchedule)) return entries;
+            if (string.IsNullOrWhiteSpace(rawSchedule))
+            {
+                scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys);
+                return entries;
+            }
 
             string[] scheduleParts = rawSchedule.Split('/');
 
             for (int i = 0; i < scheduleParts.Length; i++)
             {
-                var part = scheduleParts[i];
+                string part = scheduleParts[i];
                 string[] elements = part.Split(' ');
+
                 if (elements.Length == 0) continue;
 
                 // 🔹 여러 NPC 우정 조건 처리
                 if (elements[0] == "NOT" && elements[1] == "friendship")
                 {
-                    Dictionary<string, int> condition = new();
                     for (int k = 2; k < elements.Length - 1; k += 2)
                     {
                         if (k + 1 < elements.Length && int.TryParse(elements[k + 1], out int level))
                         {
-                            condition[elements[k]] = level;  // NPC 이름 → 우정 레벨 저장
+                            friendshipConditions[elements[k]] = level;  // NPC 이름 → 우정 레벨 저장
                         }
                     }
-                    friendshipCondition = new FriendshipConditionEntry(npcName, key, condition);
                     continue;
                 }
 
-                // 🔹 시간 파싱 (시간이 없으면 기본값 `600` 적용)
+                // 🔹 메일 조건 처리
+                if (elements[0] == "MAIL")
+                {
+                    for (int k = 1; k < elements.Length; k++)
+                    {
+                        mailKeys.Add(elements[k]);
+                    }
+                    continue;
+                }
+
+                // 🔹 시간 확인 (없으면 기본값 `600` 적용)
                 int time = 600;
                 int startIndex = 0;
 
@@ -147,8 +169,8 @@ namespace NPCSchedulers.DATA
                 // 🔹 "2440 bed" 같은 경우를 처리
                 if (startIndex == 1 && elements.Length == 2)
                 {
-                    string action = elements[startIndex];  // "bed"
-                    entries.Add(new ScheduleEntry(key, time, "", 0, 0, 0, action, "None"));
+                    string routine = elements[startIndex];  // "bed"
+                    entries.Add(new ScheduleEntry($"{key}/{i}", time, "", 0, 0, 0, routine, null));
                     continue;
                 }
 
@@ -159,13 +181,29 @@ namespace NPCSchedulers.DATA
                 int.TryParse(elements[startIndex + 1], out int x);
                 int.TryParse(elements[startIndex + 2], out int y);
                 int.TryParse(elements[startIndex + 3], out int direction);
-                string actionValue = elements.Length > startIndex + 4 ? elements[startIndex + 4] : "None";
 
-                entries.Add(new ScheduleEntry(key + "/" + i, time, location, x, y, direction, actionValue, "None"));
+                string action = (elements.Length > startIndex + 4) ? elements[startIndex + 4] : null;
+                string talk = null;
+
+                // 🔹 "대사"가 있는 경우 처리
+                if (elements.Length > startIndex + 5 && elements[startIndex + 5].StartsWith("\""))
+                {
+                    talk = string.Join(" ", elements.Skip(startIndex + 5)).Trim('\"');
+
+                    // 게임 내 문자열 리소스를 사용하는 경우 변환
+                    if (talk.StartsWith("Strings"))
+                    {
+                        talk = Game1.content.LoadString(talk);
+                    }
+                }
+
+                entries.Add(new ScheduleEntry($"{key}/{i}", time, location, x, y, direction, action, talk));
             }
 
+            scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys);
             return entries;
         }
+
 
     }
 

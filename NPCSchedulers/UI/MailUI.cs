@@ -15,13 +15,15 @@ namespace NPCSchedulers.UI
         public Rectangle Bounds => checkBox.bounds;
         private string mailKey;
         private string mailValue;
+        private bool mailCondition;
         public MailUI(Vector2 position, string mailKey, string mailValue, bool mailCondition, UIStateManager uiStateManager)
         {
             this.uiStateManager = uiStateManager;
             this.position = position;
             this.mailKey = mailKey;
             this.mailValue = mailValue;
-            int checkValue = !mailCondition ? 226 : 226 + 9;
+            this.mailCondition = mailCondition;
+            int checkValue = mailCondition ? 226 + 9 : 226;
             checkBox = new ClickableTextureComponent(
                 new Rectangle((int)position.X + 100, (int)position.Y, 300, 30),
                 Game1.mouseCursors,
@@ -43,8 +45,9 @@ namespace NPCSchedulers.UI
             if (checkBox.containsPoint(x, y))
             {
                 //해당 mailKey를 추가하고, 해당 mailKey의 상태를 변경한다.
-                uiStateManager.SetMailList(mailKey);
-                uiStateManager.ToggleMailCondition(mailKey);
+
+                uiStateManager.SetMailCondition(mailKey, !mailCondition);
+
                 Game1.playSound("coin");
 
             }
@@ -58,20 +61,24 @@ namespace NPCSchedulers.UI
     }
     public class MailTargetUI : UIBase
     {
-        private Vector2 position;
+        private string scheduleKey;
+        public Vector2 position;
         private UIStateManager uiStateManager;
         public int Height = 50;
-        public MailTargetUI(Vector2 position, UIStateManager uiStateManager)
+        public Rectangle Bounds;
+        public bool IsClicked = false;
+        public MailTargetUI(Vector2 position, string scheduleKey, UIStateManager uiStateManager)
         {
+            this.scheduleKey = scheduleKey;
             this.uiStateManager = uiStateManager;
-            this.position = position;
+            this.position = new Vector2(position.X, position.Y - Height);
         }
         public override bool Draw(SpriteBatch b)
         {
-            uiStateManager.SetScheduleKey("spring");
-            List<string> mailKeys = uiStateManager.GetMailList();
-            var conditions = uiStateManager.GetMailCondition(mailKeys);
-            var filteredCondition = conditions.Where(x => x.Value).ToList();
+
+            if (!IsVisible) return true;
+            var conditions = uiStateManager.GetMailCondition(scheduleKey);
+            var filteredCondition = MailUIStateHandler.FilterData(conditions);
             int yOffset = 0;
 
             foreach (var condition in filteredCondition)
@@ -80,12 +87,22 @@ namespace NPCSchedulers.UI
                     new Rectangle((int)position.X, (int)position.Y + yOffset, 32, 32),
                     Game1.mouseCursors, new Rectangle(188, 422, 16, 16), 2f);
                 mailButton.draw(b);
-                Color stringColor = condition.Value ? Color.Green : Color.Red;
+                Color stringColor = IsClicked ? Color.Green : Color.Red;
                 b.DrawString(Game1.smallFont, $"{condition.Key}", new Vector2(position.X + 50, (int)position.Y + yOffset), stringColor);
                 yOffset += 30;
             }
-            Height += yOffset;
+            Height = yOffset + 50;
+            Bounds = new Rectangle((int)position.X, (int)position.Y, 400, Height);
             return false;
+        }
+
+        public override void LeftClick(int x, int y)
+        {
+            if (Bounds.Contains(x, y))
+            {
+                IsClicked = !IsClicked;
+                Game1.playSound("coin");
+            }
         }
     }
     public class MailListUI : ListUI
@@ -98,21 +115,19 @@ namespace NPCSchedulers.UI
             this.uiStateManager = uiStateManager;
             this.position = position;
             this.mailList = DataLoader.Mail(Game1.content);
-
             UpdateMailUI();
         }
         public void UpdateMailUI()
         {
             mailUIs.Clear();
-            uiStateManager.SetScheduleKey("spring");
-            var mailKeys = uiStateManager.GetMailList();
-            var mailCondition = uiStateManager.GetMailCondition(mailKeys);
+            var mailCondition = uiStateManager.GetMailCondition();
+            this.mailList = uiStateManager.GetMailList();
             int yOffset = 20;
             foreach (var mail in mailList)
             {
                 bool isChecked = mailCondition.ContainsKey(mail.Key) ? mailCondition[mail.Key] : false;
                 string result = mail.Value.Length > 10 ? mail.Value.Substring(0, 10) + "..." : mail.Value;
-                //!issue yOffset이 모든 mailUI에 동일하게 적용됨. 즉, 가장 마지막의 detailDisplayPosition에 모든 ui가 위치함.
+                //issue yOffset이 모든 mailUI에 동일하게 적용됨. 즉, 가장 마지막의 detailDisplayPosition에 모든 ui가 위치함.
                 //-> static 을 지움
 
                 var detailDisplayPosition = new Vector2(position.X, position.Y + yOffset - scrollPosition);
@@ -140,7 +155,10 @@ namespace NPCSchedulers.UI
 
             return false;
         }
-
+        public override void Scroll(int direction)
+        {
+            base.Scroll(direction);
+        }
         public override void LeftClick(int x, int y)
         {
             if (upArrow.containsPoint(x, y))

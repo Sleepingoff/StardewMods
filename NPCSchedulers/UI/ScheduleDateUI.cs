@@ -8,17 +8,17 @@ using StardewModdingAPI.Events;
 
 namespace NPCSchedulers.UI
 {
-    public class ScheduleDateUI : UIBase
+    public class ScheduleDateUI : ListUI
     {
         private UIStateManager uiStateManager;
-        private Vector2 position;
         private OptionsSlider dateSlider;
         private ClickableTextureComponent leftButton;
         private ClickableTextureComponent rightButton;
-        public ScheduleDateUI(Vector2 position, UIStateManager uiStateManager)
+        private static ScheduleListUI scheduleListUI;
+        public ScheduleDateUI(Vector2 position, UIStateManager uiStateManager) : base(position, (int)position.X + 500, (int)position.Y + 700)
         {
             this.uiStateManager = uiStateManager;
-            this.position = new Vector2(position.X + 600, position.Y + 150);
+            this.position = new Vector2(position.X + 100, position.Y);
             // 🔹 날짜 슬라이더 초기화 (0~99 범위를 1~28 날짜로 변환)
 
             var (_, date) = uiStateManager.GetCurrentDate();
@@ -33,6 +33,8 @@ namespace NPCSchedulers.UI
             rightButton = new ClickableTextureComponent(
                 new Rectangle((int)this.position.X + 450, (int)this.position.Y - 50, 32, 32),
                 Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f);
+            var scheduleListUIDisplayPosition = new Vector2(position.X, position.Y);
+            scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition, uiStateManager);
 
         }
 
@@ -56,12 +58,19 @@ namespace NPCSchedulers.UI
 
             b.DrawString(Game1.smallFont, $"{season}",
                     new Vector2(position.X + 200, position.Y - 40), Color.Brown);
-
+            // 🔹 스케줄 리스트 UI 렌더링
+            scheduleListUI?.Draw(b);
             return false;
+        }
+
+        public override void Scroll(int direction)
+        {
+            scheduleListUI?.Scroll(direction);
         }
         public override void LeftHeld(int x, int y)
         {
             if (dateSlider.bounds.Contains(x, y)) { dateSlider.leftClickHeld(x, y); UpdateSlider(0); }
+            scheduleListUI?.LeftHeld(x, y);
         }
         public override void LeftClick(int x, int y)
         {
@@ -81,12 +90,15 @@ namespace NPCSchedulers.UI
                 dateSlider.receiveLeftClick(x, y);
                 UpdateSlider(0);
             }
+            scheduleListUI?.LeftClick(x, y);
         }
 
         private void UpdateSlider(int direction)
         {
             int newDate = (int)(dateSlider.value / 99.0f * 27) + 1;
             uiStateManager.SetCurrentDate((direction, newDate));
+            var scheduleListUIDisplayPosition = new Vector2(position.X - 100, position.Y);
+            scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition, uiStateManager);
         }
 
 

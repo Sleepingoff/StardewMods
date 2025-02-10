@@ -48,6 +48,7 @@
     <Compile Include="Store\UIStateManager.cs" />
     <Compile Include="Store\IUIStateHandler.cs" />
     <Compile Include="Store\FriendshipUIStateHandler.cs" />
+    <Compile Include="Store\MailUIStateHandler.cs" />
     <Compile Include="Store\DateUIStateHandler.cs" />
     <!-- UI 관련 파일 -->
     <Compile Include="UI\UIBase.cs" />

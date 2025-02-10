@@ -12,7 +12,7 @@ namespace NPCSchedulers
 {
     public class ModEntry : Mod
     {
-        private static SchedulePage schedulePage;
+        private SchedulePage schedulePage;
         private bool isProfileMenuOpen = false;
 
         public override void Entry(IModHelper helper)
@@ -28,6 +28,7 @@ namespace NPCSchedulers
             Helper.Events.Display.RenderedActiveMenu += OnRenderedActiveMenu;
             Helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             Helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            Helper.Events.GameLoop.DayStarted += OnDayStarted;
             Helper.Events.Input.ButtonPressed += OnButtonPressed;
             Helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
         }
@@ -53,7 +54,7 @@ namespace NPCSchedulers
 
         public static bool ReceiveLeftClick(int x, int y)
         {
-            schedulePage?.LeftClick(x, y);
+            Instance.schedulePage?.LeftClick(x, y);
             return !SchedulePage.IsOpen;
         }
         private static double clickHoldTime = 0; // 클릭 지속 시간 (초)
@@ -72,7 +73,7 @@ namespace NPCSchedulers
 
             if (elapsedTime >= requiredHoldTime)
             {
-                schedulePage?.LeftHeld(x, y);
+                Instance.schedulePage?.LeftHeld(x, y);
             }
         }
         public static void LeftClickReleased()
@@ -84,7 +85,7 @@ namespace NPCSchedulers
         {
             if (!SchedulePage.IsOpen) return true;
 
-            schedulePage?.Draw(b);
+            Instance.schedulePage?.Draw(b);
 
             return false;
         }
@@ -102,9 +103,9 @@ namespace NPCSchedulers
 
             //e 혹은 esc를 누르면 스케줄러 창 닫기
 
-            if (SchedulePage.IsOpen && !isProfileMenuOpen)
+            if (SchedulePage.IsOpen)
             {
-                if (e.Button == SButton.Escape)
+                if (e.Button == SButton.Escape || e.Button == SButton.E)
                 {
                     SchedulePage.Close();
                 }
@@ -114,23 +115,31 @@ namespace NPCSchedulers
             int x = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.X);
             int y = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.Y);
 
-            schedulePage = new SchedulePage();
+            if (schedulePage == null || schedulePage.npcName != profileMenu.Current.Character.Name) schedulePage = new SchedulePage(profileMenu.Current.Character.Name);
             if (SchedulePage.IsOpenPage(x, y))
             {
-                SchedulePage.ToggleSchedulePage(profileMenu);
+                schedulePage.ToggleSchedulePage(profileMenu);
             }
             else if (SchedulePage.IsOpenFriendshipList(x, y))
             {
-                SchedulePage.ToggleFriendshipList();
+                schedulePage.ToggleFriendshipList();
             }
             else if (SchedulePage.IsOpenMailList(x, y))
             {
-                SchedulePage.ToggleMailList();
+
+                schedulePage.ToggleMailList();
             }
 
 
         }
-
+        private void OnDayStarted(object sender, DayStartedEventArgs e)
+        {
+            List<string> NPCList = ScheduleDataManager.GetAllNPCListByUser();
+            foreach (string npcName in NPCList)
+            {
+                ScheduleDataManager.ApplyScheduleToNPC(npcName);
+            }
+        }
         private void OnRenderedActiveMenu(object sender, RenderedActiveMenuEventArgs e)
         {
             if (Game1.activeClickableMenu is ProfileMenu profileMenu)

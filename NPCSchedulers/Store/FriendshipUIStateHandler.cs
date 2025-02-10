@@ -17,8 +17,7 @@ namespace NPCSchedulers.Store
         public override void InitData()
         {
             if (scheduleKey == null) return;
-            FriendshipConditionEntry condition = ScheduleDataManager.GetFriendshipCondition(npcName, scheduleKey);
-            friendshipConditions = condition;
+            friendshipConditions = ScheduleDataManager.GetFriendshipCondition(npcName, scheduleKey);
             villagers = Utility.getAllCharacters().Where(npc => npc.IsVillager).Select(npc => npc.Name).ToList();
 
             foreach (var villager in villagers)
@@ -67,7 +66,7 @@ namespace NPCSchedulers.Store
         public static Dictionary<string, int> FilterData(Dictionary<string, int> friendshipCondition)
         {
             Dictionary<string, int> newFriendshipConditionEntry = friendshipCondition;
-            var target = newFriendshipConditionEntry.Where(value => value.Value != 0);
+            var target = newFriendshipConditionEntry.Where(value => value.Value > 0);
             newFriendshipConditionEntry = target.ToDictionary(pair => pair.Key, pair => pair.Value);
             return newFriendshipConditionEntry;
         }

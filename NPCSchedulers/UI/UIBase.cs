@@ -74,7 +74,7 @@ namespace NPCSchedulers.UI
 
         }
 
-        public void Scroll(int direction)
+        public virtual void Scroll(int direction)
         {
             scrollPosition = MathHelper.Clamp(scrollPosition + direction * scrollStep, 0, maxScrollPosition);
         }
@@ -82,6 +82,7 @@ namespace NPCSchedulers.UI
         public void SetMaxScrollPosition(int contentHeight, int viewportHeight)
         {
             maxScrollPosition = Math.Max(0, contentHeight - viewportHeight);
+            scrollPosition = Math.Min(scrollPosition, maxScrollPosition);
         }
 
         public void AddElement(UIBase element)

@@ -15,17 +15,26 @@ namespace NPCSchedulers.UI
         private static bool isOpenFriendshipList = false;
         private static bool isOpenMailList = false;
 
-        private static UIStateManager uiStateManager;
-        private static ScheduleListUI scheduleListUI;
+        private UIStateManager uiStateManager;
+
 
         private static ScheduleDateUI scheduleDateUI;
         private static FriendshipListUI friendshipListUI;
         private static MailListUI mailListUI;
-
+        public string npcName;
         private static Rectangle scheduleButton;
         private static Rectangle friendshipButton;
         private static Rectangle mailButton;
-        public static void ToggleSchedulePage(ProfileMenu profileMenu)
+
+        //스케줄페이지 인스턴스 생성
+        public static SchedulePage Instance { get; private set; }
+        public SchedulePage(string npcName)
+        {
+            this.npcName = npcName;
+            uiStateManager = new UIStateManager(npcName);
+            Instance = this;
+        }
+        public void ToggleSchedulePage(ProfileMenu profileMenu)
         {
             if (isOpen)
             {
@@ -40,36 +49,44 @@ namespace NPCSchedulers.UI
                 }
             }
         }
-        public static void ToggleFriendshipList()
+        public void ToggleFriendshipList()
         {
-            isOpenFriendshipList = !isOpenFriendshipList;
-            if (isOpenFriendshipList) isOpenMailList = false;
+            uiStateManager.ToggleListUI("");
+            isOpenFriendshipList = uiStateManager.IsEditMode && !isOpenFriendshipList;
 
             if (!isOpenFriendshipList) return;
+
+            isOpenMailList = false;
+            uiStateManager.ToggleListUI("friendship");
+
             var displayPosition = UIStateManager.GetMenuPosition();
             var friendshipListUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y + 100);
             friendshipListUI = new FriendshipListUI(friendshipListUIDisplayPosition, uiStateManager);
         }
-        public static void ToggleMailList()
+        public void ToggleMailList()
         {
-            isOpenMailList = !isOpenMailList;
-            if (isOpenMailList) isOpenFriendshipList = false;
+            uiStateManager.ToggleListUI("");
+            isOpenMailList = uiStateManager.IsEditMode && !isOpenMailList;
 
             if (!isOpenMailList) return;
+            isOpenFriendshipList = false;
+            uiStateManager.ToggleListUI("mail");
             var displayPosition = UIStateManager.GetMenuPosition();
             var friendshipListUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y + 100);
+
             mailListUI = new MailListUI(friendshipListUIDisplayPosition, uiStateManager);
         }
         public static bool IsOpen => isOpen;
 
-        public static void Open(NPC npc)
+        public void Open(NPC npc)
         {
-            uiStateManager = new UIStateManager(npc.Name);
-            var displayPosition = UIStateManager.GetMenuPosition();
-            var scheduleListUIDisplayPosition = new Vector2(displayPosition.X + 500, displayPosition.Y + 200);
-            var scheduleDateUIDisplayPosition = new Vector2(displayPosition.X, displayPosition.Y);
 
-            scheduleListUI = new ScheduleListUI(scheduleListUIDisplayPosition, uiStateManager);
+            uiStateManager.InitDate();
+            var displayPosition = UIStateManager.GetMenuPosition();
+
+            var scheduleDateUIDisplayPosition = new Vector2(displayPosition.X + 500, displayPosition.Y + 150);
+
+
             scheduleDateUI = new ScheduleDateUI(scheduleDateUIDisplayPosition, uiStateManager); // 날짜 UI 위치
 
             isOpen = true;
@@ -78,7 +95,7 @@ namespace NPCSchedulers.UI
         public static void Close()
         {
             isOpen = false;
-            scheduleListUI = null;
+            Instance.uiStateManager.ToggleEditMode();
         }
 
         public override bool Draw(SpriteBatch b)
@@ -92,9 +109,6 @@ namespace NPCSchedulers.UI
             int width = Game1.activeClickableMenu.width;
             int height = Game1.activeClickableMenu.height;
 
-            NPC nPC = uiStateManager.CurrentNPC;
-
-            if (nPC == null) return true;
 
             int xPositionOnScreen = Game1.activeClickableMenu.xPositionOnScreen;
             int yPositionOnScreen = Game1.activeClickableMenu.yPositionOnScreen;
@@ -117,7 +131,10 @@ namespace NPCSchedulers.UI
             Vector2 characterNamePosition = new Vector2(rectangle.Center.X, rectangle.Top);
             rectangle.Y += 96;
             rectangle.Height -= 96;
+            if (uiStateManager == null) return true;
+            NPC nPC = uiStateManager.CurrentNPC;
 
+            if (nPC == null) return true;
             if (nPC.Birthday_Season != null && Utility.getSeasonNumber(nPC.Birthday_Season) >= 0)
             {
                 rectangle.Y += 48;
@@ -135,9 +152,49 @@ namespace NPCSchedulers.UI
 
             Game1.DrawBox(characterStatusDisplayBox.X, characterStatusDisplayBox.Y, characterStatusDisplayBox.Width, characterStatusDisplayBox.Height);
 
-            // 🔹 편집 UI가 활성화되었으면 렌더링
+
+
+            //기본 UI
+
+            // ClickableTextureComponent nextCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + width - 32 - 48, yPositionOnScreen + height - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f)
+            // {
+            //     myID = 0,
+            //     name = "Next Char",
+            //     upNeighborID = -99998,
+            //     downNeighborID = -99998,
+            //     leftNeighborID = -99998,
+            //     rightNeighborID = -99998,
+            //     region = 500
+            // };
+            // ClickableTextureComponent previousCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + 32, yPositionOnScreen - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f)
+            // {
+            //     myID = 0,
+            //     name = "Previous Char",
+            //     upNeighborID = -99998,
+            //     downNeighborID = -99998,
+            //     leftNeighborID = -99998,
+            //     rightNeighborID = -99998,
+            //     region = 500
+            // };
+            // previousCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X - 64 - previousCharacterButton.bounds.Width / 2;
+            // previousCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - previousCharacterButton.bounds.Height / 2;
+            // nextCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X + Game1.nightbg.Width + 64 - nextCharacterButton.bounds.Width / 2;
+            // nextCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - nextCharacterButton.bounds.Height / 2;
+
+
+
+            //     List<ClickableTextureComponent> clickableTextureComponents = new List<ClickableTextureComponent>
+            // {
+            //     previousCharacterButton,
+            //     nextCharacterButton,
+            // };
+            //     foreach (ClickableTextureComponent clickableTextureComponent in clickableTextureComponents)
+            //     {
+            //         clickableTextureComponent.draw(b);
+            //     }
+
             if (isOpenFriendshipList) friendshipListUI?.Draw(b);
-            else if (isOpenMailList) mailListUI.Draw(b);
+            else if (isOpenMailList) mailListUI?.Draw(b);
             else
             {
 
@@ -146,53 +203,13 @@ namespace NPCSchedulers.UI
 
                 // NPC 이름 출력
                 SpriteText.drawStringWithScrollCenteredAt(b, nPC.displayName, (int)characterNamePosition.X, (int)characterNamePosition.Y);
-                //기본 UI
-
-                // ClickableTextureComponent nextCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + width - 32 - 48, yPositionOnScreen + height - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f)
-                // {
-                //     myID = 0,
-                //     name = "Next Char",
-                //     upNeighborID = -99998,
-                //     downNeighborID = -99998,
-                //     leftNeighborID = -99998,
-                //     rightNeighborID = -99998,
-                //     region = 500
-                // };
-                // ClickableTextureComponent previousCharacterButton = new ClickableTextureComponent(new Rectangle(xPositionOnScreen + 32, yPositionOnScreen - 32 - 64, 48, 44), Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f)
-                // {
-                //     myID = 0,
-                //     name = "Previous Char",
-                //     upNeighborID = -99998,
-                //     downNeighborID = -99998,
-                //     leftNeighborID = -99998,
-                //     rightNeighborID = -99998,
-                //     region = 500
-                // };
-                // previousCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X - 64 - previousCharacterButton.bounds.Width / 2;
-                // previousCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - previousCharacterButton.bounds.Height / 2;
-                // nextCharacterButton.bounds.X = (int)characterSpriteDrawPosition.X + Game1.nightbg.Width + 64 - nextCharacterButton.bounds.Width / 2;
-                // nextCharacterButton.bounds.Y = (int)characterSpriteDrawPosition.Y + Game1.nightbg.Height / 2 - nextCharacterButton.bounds.Height / 2;
-
-
-
-                //     List<ClickableTextureComponent> clickableTextureComponents = new List<ClickableTextureComponent>
-                // {
-                //     previousCharacterButton,
-                //     nextCharacterButton,
-                // };
-                //     foreach (ClickableTextureComponent clickableTextureComponent in clickableTextureComponents)
-                //     {
-                //         clickableTextureComponent.draw(b);
-                //     }
             }
-
             SpriteText.drawStringWithScrollCenteredAt(b, nPC.Name + "'s Schedule",
                                                        itemDisplayRect.Center.X, itemDisplayRect.Top);
             // 🔹 날짜 UI 그리기
             scheduleDateUI?.Draw(b);
 
-            // 🔹 스케줄 리스트 UI 렌더링
-            scheduleListUI?.Draw(b);
+
 
             Game1.activeClickableMenu?.drawMouse(b, ignore_transparency: true);
 
@@ -229,13 +246,12 @@ namespace NPCSchedulers.UI
         // 🔹 클릭 이벤트 처리 추가
         public override void LeftClick(int x, int y)
         {
-
             if (!isOpen) return;
 
             if (isOpenFriendshipList) friendshipListUI?.LeftClick(x, y);
             if (isOpenMailList) mailListUI?.LeftClick(x, y);
             scheduleDateUI?.LeftClick(x, y);
-            scheduleListUI?.LeftClick(x, y);
+
         }
 
         public override void LeftHeld(int x, int y)
@@ -243,7 +259,7 @@ namespace NPCSchedulers.UI
             if (isOpenFriendshipList) friendshipListUI?.LeftHeld(x, y);
             if (isOpenMailList) mailListUI?.LeftHeld(x, y);
             scheduleDateUI?.LeftHeld(x, y);
-            scheduleListUI?.LeftHeld(x, y);
+
         }
         public void ScrollWheelAction(int direction)
         {
@@ -252,9 +268,9 @@ namespace NPCSchedulers.UI
             direction = direction > 0 ? -1 : 1;
             int x = (int)Utility.ModifyCoordinateForUIScale(mouseX);
             int y = (int)Utility.ModifyCoordinateForUIScale(mouseY);
-            if (IsMouseOverUIElement(scheduleListUI, x, y))
+            if (IsMouseOverUIElement(scheduleDateUI, x, y))
             {
-                scheduleListUI?.Scroll(direction);
+                scheduleDateUI?.Scroll(direction);
             }
             else if (isOpenFriendshipList && IsMouseOverUIElement(friendshipListUI, x, y))
             {
@@ -307,9 +323,11 @@ namespace NPCSchedulers.UI
         }
         public static void DrawButton(SpriteBatch b)
         {
+            if (Instance == null) return;
             DrawDialogButton(b, scheduleButton, "Scheduler");
-            DrawDialogButton(b, friendshipButton, "<3", !isOpen);
-            DrawDialogButton(b, mailButton, "@", !isOpen);
+
+            DrawDialogButton(b, friendshipButton, "<3", !isOpen && (Instance.uiStateManager == null || !Instance.uiStateManager.IsEditMode));
+            DrawDialogButton(b, mailButton, "@", !isOpen && (Instance.uiStateManager == null || !Instance.uiStateManager.IsEditMode));
         }
         public static bool IsOpenMailList(int x, int y)
         {
@@ -323,5 +341,7 @@ namespace NPCSchedulers.UI
         {
             return scheduleButton.Contains(x, y);
         }
+
+
     }
 }

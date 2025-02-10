@@ -48,9 +48,9 @@ namespace NPCSchedulers.DATA
             return ConvertUserDataToNPCScheduleDataType(userRawData);
         }
 
-        public static Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> LoadScheduleByUser(string npcName)
+        public static ScheduleDataType LoadScheduleByUser(string npcName)
         {
-            Dictionary<string, (FriendshipConditionEntry, List<ScheduleEntry>)> userSchedules = new();
+            ScheduleDataType userSchedules = new();
 
             // 🔹 `LoadUserSchedules()`를 사용하여 최신 데이터 가져오기
             Dictionary<string, UserScheduleDataType> userData = LoadUserSchedules();
@@ -64,12 +64,9 @@ namespace NPCSchedulers.DATA
                 string rawSchedule = scheduleEntry.Value;
 
                 var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, key, rawSchedule, out var parsedCondition);
-                if (parsedCondition == null)
-                {
-                    parsedCondition = new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>());
-                }
 
-                userSchedules[key] = (parsedCondition, parsedEntries);
+                var (parsedFriendshipCondition, parsedMailList) = parsedCondition;
+                userSchedules[key] = (parsedFriendshipCondition, parsedEntries, parsedMailList);
             }
 
             return userSchedules;
@@ -82,6 +79,11 @@ namespace NPCSchedulers.DATA
                 return npcSchedules.ContainsKey(key) ? npcSchedules[key] : null;
             }
             return null;
+        }
+
+        public List<string> GetAllNPCList()
+        {
+            return scheduleData.Keys.ToList();
         }
 
         public override HashSet<string> GetScheduleKeys(string npcName)

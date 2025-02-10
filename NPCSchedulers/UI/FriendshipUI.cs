@@ -104,22 +104,24 @@ namespace NPCSchedulers.UI
 
     public class FriendshipTargetUI : UIBase
     {
-        private Vector2 position;
+        private string scheduleKey;
+        public Vector2 position;
         private UIStateManager uiStateManager;
         public int Height = 25;
-        public FriendshipTargetUI(Vector2 position, UIStateManager uiStateManager)
+        public FriendshipTargetUI(Vector2 position, string scheduleKey, UIStateManager uiStateManager)
         {
+            this.scheduleKey = scheduleKey;
             this.uiStateManager = uiStateManager;
-            this.position = position;
+            this.position = new Vector2(position.X, position.Y + Height);
         }
 
         public override bool Draw(SpriteBatch b)
         {
             if (!IsVisible) return true;
 
-            Dictionary<string, int> conditions = uiStateManager.GetFriendshipCondition();
+            Dictionary<string, int> conditions = uiStateManager.GetFriendshipCondition(scheduleKey);
             var filteredCondition = FriendshipUIStateHandler.FilterData(conditions);
-            int yOffset = 0;
+            int yOffset = 20;
 
             foreach (var condition in filteredCondition)
             {
@@ -175,6 +177,7 @@ namespace NPCSchedulers.UI
 
         public override bool Draw(SpriteBatch b)
         {
+            if (uiStateManager.CurrentListUI != "friendship") return true;
             b.DrawString(Game1.dialogueFont, "Friendship List", new Vector2(position.X + 100, position.Y - 50), Color.Black);
             base.Draw(b);
             UpdateFriendshipUI();
@@ -185,6 +188,10 @@ namespace NPCSchedulers.UI
 
             return base.DrawEnd(b);
 
+        }
+        public override void Scroll(int direction)
+        {
+            base.Scroll(direction);
         }
         public override void LeftHeld(int x, int y)
         {
