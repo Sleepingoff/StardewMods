@@ -115,7 +115,6 @@ namespace NPCSchedulers
             int x = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.X);
             int y = (int)Utility.ModifyCoordinateForUIScale(e.Cursor.ScreenPixels.Y);
 
-            if (schedulePage == null || schedulePage.npcName != profileMenu.Current.Character.Name) schedulePage = new SchedulePage(profileMenu.Current.Character.Name);
             if (SchedulePage.IsOpenPage(x, y))
             {
                 schedulePage.ToggleSchedulePage(profileMenu);
@@ -151,7 +150,13 @@ namespace NPCSchedulers
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
             isProfileMenuOpen = Game1.activeClickableMenu is ProfileMenu;
-            if (isProfileMenuOpen) SchedulePage.CreateScheduleButton((ProfileMenu)Game1.activeClickableMenu);
+            if (isProfileMenuOpen)
+            {
+                SchedulePage.CreateScheduleButton((ProfileMenu)Game1.activeClickableMenu);
+                ProfileMenu profileMenu = (ProfileMenu)Game1.activeClickableMenu;
+                if (schedulePage == null || schedulePage.npcName != profileMenu.Current.Character.Name) schedulePage = new SchedulePage(profileMenu.Current.Character.Name);
+            }
+
         }
         private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {

@@ -318,8 +318,7 @@ namespace NPCSchedulers.UI
             int actionIndex = Math.Clamp((int)(actionSlider.value / 99f * actionOptions[currentNPC].Count), 0, actionOptions[currentNPC].Count - 1);
             string newAction = actionOptions[currentNPC][actionIndex];
 
-            int locationIndex = Math.Clamp((int)(locationSlider.value / 99f * locationOptions.Count), 0, locationOptions.Count - 1);
-            string newLocation = locationOptions[locationIndex];
+            string newLocation = selectedOption;
 
             int directionIndex = Math.Clamp((int)(directionSlider.value / 99f * 4), 0, 3);
 

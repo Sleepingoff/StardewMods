@@ -295,7 +295,7 @@ namespace NPCSchedulers
         /// </summary>
         public static void SaveUserSchedule(string npcName, string key, ScheduleDataType scheduleData)
         {
-            var (friendshipCondition, scheduleList, mailKeys) = scheduleData[key];
+            var (friendshipCondition, scheduleList, mailKeys, gotoKey) = scheduleData[key];
             Dictionary<string, UserScheduleDataType> userSchedules = UserScheduleData.LoadUserSchedules();
 
             if (!userSchedules.ContainsKey(npcName))
@@ -315,11 +315,8 @@ namespace NPCSchedulers
 
             if (formattedMail.Length > 0 && scheduleList.Count > 0)
             {
-                string entryKey = scheduleList.First().Key;
-                int entryKeyLength = entryKey.Split("/").Count();
-                if (entryKeyLength > 2)
+                if (gotoKey != null && gotoKey.Length > 0)
                 {
-                    string gotoKey = entryKey.Split("/").Last();
                     formattedGoto = FormatGOTOEntry(gotoKey);
                     Game1.addHUDMessage(new HUDMessage("applied GOTO scheduleKey", 2));
                 }
@@ -359,19 +356,18 @@ namespace NPCSchedulers
         /// <summary>
         /// 스케줄 데이터를 `FriendshipConditionEntry`와 `ScheduleEntry` 리스트로 변환
         /// </summary>
-        private static (FriendshipConditionEntry, List<ScheduleEntry>, List<string>) ParseScheduleEntries(string npcName, string key, string scheduleData)
+        private static (FriendshipConditionEntry, List<ScheduleEntry>, List<string>, string) ParseScheduleEntries(string npcName, string key, string scheduleData)
         {
             List<ScheduleEntry> entries = new();
             FriendshipConditionEntry friendshipCondition = new FriendshipConditionEntry(npcName, key, new Dictionary<string, int>());
             //v0.0.3 + 메일 파싱 추가
             List<string> mailKeys = new(); // 📌 메일 키만 저장
             string gotoKey = null;
-            if (string.IsNullOrWhiteSpace(scheduleData)) return (friendshipCondition, entries, mailKeys);
+            if (string.IsNullOrWhiteSpace(scheduleData)) return (friendshipCondition, entries, mailKeys, gotoKey);
 
             string[] scheduleParts = scheduleData.Split('/');
             int i = 0; // 루프 인덱스
                        // 📌 일반 스케줄 엔트리 추가
-            string entryKey = null;
             while (i < scheduleParts.Length)
             {
                 var part = scheduleParts[i];
@@ -402,12 +398,6 @@ namespace NPCSchedulers
                     if (finalSchedule.TryGetValue(gotoKey, out var gotoScheduleData))
                     {
                         gotoKey = elements[1];
-                        //for문으로 변경
-                        for (int j = 0; j < gotoScheduleData.Count; j++)
-                        {
-                            gotoScheduleData[j].Key = key + "/" + j + "/" + gotoKey;
-                        }
-
                         entries.AddRange(gotoScheduleData);
                     }
                     i++;
@@ -425,19 +415,17 @@ namespace NPCSchedulers
                 }
                 else if (elements.Length > 4)
                 {
-                    entryKey = $"{key}/{i}";
+                    string entryKey = $"{key}/{i}";
+
                     var parsed = ParseScheduleEntry(entryKey, part);
-                    if (gotoKey != null)
-                    {
-                        parsed.Key = entryKey + "/" + gotoKey;
-                    }
+
                     entries.Add(parsed);
                 }
                 i++;
             }
 
 
-            return (friendshipCondition, entries, mailKeys);
+            return (friendshipCondition, entries, mailKeys, gotoKey);
         }
         // 🔹 단일 스케줄 엔트리를 파싱하는 메서드
         private static ScheduleEntry ParseScheduleEntry(string entryKey, string schedulePart)
@@ -566,7 +554,7 @@ namespace NPCSchedulers
                 //v0.0.4 +
                 //todo: 우선순위가 더 높은 키로 사용자가 추가하는 경우
                 if (npc.ScheduleKey != key) continue;
-                var (_, scheduleList, _) = schedules[key];
+                var (_, scheduleList, _, _) = schedules[key];
 
                 foreach (var entry in scheduleList)
                 {

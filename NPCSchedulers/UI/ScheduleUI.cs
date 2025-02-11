@@ -21,6 +21,8 @@ namespace NPCSchedulers.UI
         private OptionsTextBox gotoTextBox;
         private ClickableTextureComponent checkGotoButton;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
+        private List<ScheduleEntry> gotoEntries;
+        private List<ScheduleEntry> scheduleEntries;
         private FriendshipTargetUI friendshipTargetUI;
         private MailTargetUI mailTargetUI;
         private Rectangle scheduleBox;
@@ -31,33 +33,29 @@ namespace NPCSchedulers.UI
             this.position = position;
             this.uiStateManager = uiStateManager;
             this.scheduleKey = scheduleKey;
-            this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
 
+            this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
             // 🔹 스케줄 박스 크기 설정    
             friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y + 60), scheduleKey, uiStateManager);
             mailTargetUI = new MailTargetUI(new Vector2((int)position.X, (int)position.Y + 60 + friendshipTargetUI.Height + 60), scheduleKey, uiStateManager);
-            Height = entries.Count * Height + mailTargetUI.Height + friendshipTargetUI.Height + 250 + (uiStateManager.IsEditMode ? 600 : 0);
-            if (entries.Count > 0)
-            {
-                int length = entries[0].Key.Split('/').Count();
-                if (length > 2)
-                {
-                    gotoKey = entries[0].Key.Split('/').Last();
-                    this.scheduleKey = entries[0].Key.Split('/').First();
-                }
-            }
 
+            UpdateScheduleEntries();
             gotoTextBox = new OptionsTextBox("GOTO", gotoKey != null ? gotoKey : "", 300);
-
+            Height = entries.Count * Height + mailTargetUI.Height + friendshipTargetUI.Height + 250 + (uiStateManager.IsEditMode ? 600 : 0);
+            scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
+            checkGotoButton = new ClickableTextureComponent("check", new Rectangle(gotoTextBox.bounds.X + 300 + 50, gotoTextBox.bounds.Y, 64, 64), "", "save GOTO  scheduleKey", Game1.mouseCursors, new Rectangle(175, 378, 16, 16), 3f);
         }
-
+        private void UpdateScheduleEntries()
+        {
+            this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
+        }
         public override bool Draw(SpriteBatch b)
         {
             if (!IsVisible) return true;
-            gotoTextBox.bounds = new Rectangle((int)position.X + 200, (int)position.Y + 40 + friendshipTargetUI.Height, 200, 50);
-            checkGotoButton = new ClickableTextureComponent("check", new Rectangle(gotoTextBox.bounds.X + 300 + 50, gotoTextBox.bounds.Y, 32, 32), "", "save GOTO  scheduleKey", Game1.mouseCursors, new Rectangle(175, 378, 16, 16), 2f);
+            gotoTextBox.bounds = new Rectangle((int)position.X + 200, (int)position.Y + 40 + friendshipTargetUI.Height, 300, 50);
+
+            UpdateScheduleEntries();
             scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
-            this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
 
             Vector2 titleDisplayPosition = new Vector2(scheduleBox.X + 10, scheduleBox.Y);
             // 🔹 스케줄 키 표시
@@ -76,6 +74,8 @@ namespace NPCSchedulers.UI
             SpriteText.drawString(b, $"{scheduleKey}", (int)titleDisplayPosition.X, (int)titleDisplayPosition.Y, layerDepth: 0.1f, color: keyColor);
 
             gotoTextBox.draw(b, (int)titleDisplayPosition.X, yOffset);
+            checkGotoButton.bounds.X = gotoTextBox.bounds.X + gotoTextBox.bounds.Width + 50;
+            checkGotoButton.bounds.Y = gotoTextBox.bounds.Y;
             checkGotoButton.draw(b);
             yOffset += 50;
             friendshipTargetUI.position = new Vector2((int)position.X, yOffset);
@@ -130,18 +130,19 @@ namespace NPCSchedulers.UI
         }
         public override void LeftClick(int x, int y)
         {
+
             if (!IsVisible) return;
 
             // 🔹 개별 스케줄 삭제 버튼 클릭 감지
             int yOffset = scheduleBox.Y + 60;
 
-            if (uiStateManager.IsEditMode)
+            if (scheduleEditUI != null && uiStateManager.IsEditMode)
             {
                 scheduleEditUI?.LeftClick(x, y);
             }
             if (gotoTextBox.bounds.Contains(x, y)) gotoTextBox.textBox.SelectMe();
 
-            if (checkGotoButton.bounds.Contains(x, y))
+            if (checkGotoButton != null && checkGotoButton.bounds.Contains(x, y))
             {
                 string newGotoKey = gotoTextBox.textBox.Text;
                 bool hasKey = uiStateManager.HasKeyInAllScheduleDataWithCurrentNPC(newGotoKey);
@@ -157,26 +158,30 @@ namespace NPCSchedulers.UI
                 else
                 {
                     uiStateManager.SetScheduleKey(scheduleKey);
-                    foreach (var entry in entries)
-                    {
-
-                        string entryKey = entry.Key.Split('/').First();
-                        string entryNum = entry.Key.Split('/')[1];
-                        entry.Key = $"{entryKey}/{entryNum}";
-
-                        entry.Key += $"/{newGotoKey}";
-
-                    }
+                    uiStateManager.SetGotoKey(newGotoKey);
                     uiStateManager.SetScheduleDataByList(entries);
-
                 }
             }
-            yOffset += mailTargetUI.Height + 60;
-            yOffset += friendshipTargetUI.Height;
-            Vector2 detailDisplayPosition = new Vector2(scheduleBox.X, 0);
+
+            yOffset += mailTargetUI?.Height ?? 50 + 60;
+            yOffset += friendshipTargetUI?.Height ?? 50 + 50;
+            Vector2 detailDisplayPosition = new Vector2(position.X, 0);
             foreach (var entry in entries)
             {
-                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset, scheduleBox.Width, 80);
+
+
+                if (entry.Contains(x, y))
+                {
+                    uiStateManager.SetScheduleKey(scheduleKey);
+                    uiStateManager.ToggleEditMode(entry.Key);
+                    if (SchedulePage.IsOpen && uiStateManager.IsEditMode && uiStateManager.EditedScheduleKey == entry.Key)
+                    {
+                        scheduleEditUI = new ScheduleEditUI(new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80), entry.Key, entry, uiStateManager);
+                        yOffset += 600;
+                    }
+
+                }
+                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset + 50, 600, 80);
                 entry.SetBounds(detailDisplay.X, detailDisplay.Y, detailDisplay.Width, detailDisplay.Height);
                 Rectangle deleteButtonBounds = new Rectangle(detailDisplay.Right - 40, detailDisplay.Y, 32, 32);
                 if (deleteButtonBounds.Contains(x, y))
@@ -185,19 +190,6 @@ namespace NPCSchedulers.UI
                     uiStateManager.SetScheduleKey(scheduleKey);
                     uiStateManager.DeleteScheduleEntry(scheduleKey, entry);
                     return;
-                }
-
-                if (entry.Contains(x, y))
-                {
-                    uiStateManager.SetScheduleKey(scheduleKey);
-                    uiStateManager.ToggleEditMode(entry.Key);
-                    if (SchedulePage.IsOpen && uiStateManager.IsEditMode && uiStateManager.EditedScheduleKey == entry.Key)
-                    {
-
-                        scheduleEditUI = new ScheduleEditUI(new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80), entry.Key, entry, uiStateManager);
-                        yOffset += 600;
-                    }
-
                 }
                 yOffset += 100;
 
@@ -290,11 +282,12 @@ namespace NPCSchedulers.UI
             foreach (var scheduleUI in scheduleEntries)
             {
                 base.Draw(b);
+                UpdateSchedules();
                 scheduleUI.Draw(b);
                 base.DrawEnd(b);
                 if (uiStateManager.IsEditMode) ScheduleEditUI.DrawTooltip(b, ScheduleUI.scheduleEditUI);
             }
-            UpdateSchedules();
+
             return false;
         }
         public override void Scroll(int direction)

@@ -65,8 +65,8 @@ namespace NPCSchedulers.DATA
 
                 var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, key, rawSchedule, out var parsedCondition);
 
-                var (parsedFriendshipCondition, parsedMailList) = parsedCondition;
-                userSchedules[key] = (parsedFriendshipCondition, parsedEntries, parsedMailList);
+                var (parsedFriendshipCondition, parsedMailList, gotoKey) = parsedCondition;
+                userSchedules[key] = (parsedFriendshipCondition, parsedEntries, parsedMailList, gotoKey);
             }
 
             return userSchedules;

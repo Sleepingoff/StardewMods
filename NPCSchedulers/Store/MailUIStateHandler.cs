@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NPCSchedulers.DATA;
 using StardewValley;
+using StardewValley.Network;
 
 namespace NPCSchedulers.Store
 {
@@ -9,6 +10,7 @@ namespace NPCSchedulers.Store
         private Dictionary<string, bool> mailConditions;
         private List<string> mailKeys = new();
         private static Dictionary<string, string> mails = new();
+        private string gotoKey = null;
 
         public MailUIStateHandler(string npcName, string scheduleKey) : base(npcName, scheduleKey)
         {
@@ -22,7 +24,6 @@ namespace NPCSchedulers.Store
             mailKeys = ScheduleDataManager.GetMailList(npcName, scheduleKey);
             mailConditions = mails.ToDictionary(pair => pair.Key, pair => mailKeys.Contains(pair.Key));
 
-            Console.WriteLine(mailKeys.Count);
             foreach (var mailKey in mailKeys)
             {
                 if (mailConditions.ContainsKey(mailKey))
@@ -41,16 +42,11 @@ namespace NPCSchedulers.Store
         {
             mailKeys = ScheduleDataManager.GetMailList(npcName, scheduleKey);
 
-            Console.WriteLine(mailKeys.Count);
             foreach (var mailKey in mailKeys)
             {
-                if (mailConditions.ContainsKey(mailKey))
+                if (!mailConditions.ContainsKey(mailKey))
                 {
-                    mailConditions[mailKey] = true;
-                }
-                else
-                {
-                    mailConditions.Add(mailKey, true);
+                    mailConditions.Add(mailKey, false);
                 }
             }
             return mailConditions;
@@ -64,15 +60,12 @@ namespace NPCSchedulers.Store
         public override void UpdateData(Dictionary<string, bool> data)
         {
             var conditions = mailConditions;
-            foreach (var key in conditions.Keys)
+            foreach (var key in data.Keys)
             {
-                if (data.ContainsKey(key))
-                {
-                    bool newMail = data[key];
+                bool newMail = data[key];
 
-                    conditions[key] = newMail;
-
-                }
+                conditions[key] = newMail;
+                Console.WriteLine(newMail);
             }
             SaveData(conditions);
         }
@@ -92,6 +85,12 @@ namespace NPCSchedulers.Store
             return newMailCondition;
         }
 
+        public static bool HasReceivedAllMail(string mailKey)
+        {
+            return Game1.MasterPlayer.mailReceived.Contains(mailKey) ||
+                NetWorldState.checkAnywhereForWorldStateID(mailKey);
+        }
+
         public Dictionary<string, string> GetMailList()
         {
             mailKeys = ScheduleDataManager.GetMailList(npcName, scheduleKey);
@@ -106,6 +105,16 @@ namespace NPCSchedulers.Store
                          .ThenBy(mail => mail.Key)
                          .ToDictionary(pair => pair.Key, pair => pair.Value);
             return mails;
+        }
+
+        public string GetGotoKey()
+        {
+            return gotoKey;
+        }
+
+        public void SetGotoKey(string newGotoKey)
+        {
+            gotoKey = newGotoKey;
         }
     }
 }

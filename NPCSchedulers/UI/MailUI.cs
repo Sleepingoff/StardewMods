@@ -66,18 +66,20 @@ namespace NPCSchedulers.UI
         private UIStateManager uiStateManager;
         public int Height = 50;
         public Rectangle Bounds;
-        public bool IsClicked = false;
+        public bool IsClicked = true;
+        public bool receivedMail = false;
         public MailTargetUI(Vector2 position, string scheduleKey, UIStateManager uiStateManager)
         {
             this.scheduleKey = scheduleKey;
             this.uiStateManager = uiStateManager;
             this.position = new Vector2(position.X, position.Y - Height);
+
         }
         public override bool Draw(SpriteBatch b)
         {
 
             if (!IsVisible) return true;
-            var conditions = uiStateManager.GetMailCondition(scheduleKey);
+            var conditions = uiStateManager.GetMailCondition();
             var filteredCondition = MailUIStateHandler.FilterData(conditions);
             int yOffset = 0;
 
@@ -87,7 +89,9 @@ namespace NPCSchedulers.UI
                     new Rectangle((int)position.X, (int)position.Y + yOffset, 32, 32),
                     Game1.mouseCursors, new Rectangle(188, 422, 16, 16), 2f);
                 mailButton.draw(b);
-                Color stringColor = IsClicked ? Color.Green : Color.Red;
+
+                receivedMail = uiStateManager.GetReceivedMail(condition.Key);
+                Color stringColor = receivedMail ? Color.Green : Color.Red;
                 b.DrawString(Game1.smallFont, $"{condition.Key}", new Vector2(position.X + 50, (int)position.Y + yOffset), stringColor);
                 yOffset += 30;
             }

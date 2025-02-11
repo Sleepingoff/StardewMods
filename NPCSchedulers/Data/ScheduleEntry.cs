@@ -112,15 +112,16 @@ namespace NPCSchedulers.DATA
 
         public static List<ScheduleEntry> ParseScheduleEntries(
             string npcName, string key, string rawSchedule,
-            out (FriendshipConditionEntry friendshipCondition, List<string> mailKeys) scheduleCondition)
+            out (FriendshipConditionEntry friendshipCondition, List<string> mailKeys, string gotoKey) scheduleCondition)
         {
             List<ScheduleEntry> entries = new();
             Dictionary<string, int> friendshipConditions = new();
             List<string> mailKeys = new();
+            string gotoKey = null;
 
             if (string.IsNullOrWhiteSpace(rawSchedule))
             {
-                scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys);
+                scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys, gotoKey);
                 return entries;
             }
 
@@ -154,6 +155,11 @@ namespace NPCSchedulers.DATA
                         mailKeys.Add(elements[k]);
                     }
                     continue;
+                }
+
+                if (elements[0] == "GOTO")
+                {
+                    gotoKey = elements[1];
                 }
 
                 // 🔹 시간 확인 (없으면 기본값 `600` 적용)
@@ -200,7 +206,7 @@ namespace NPCSchedulers.DATA
                 entries.Add(new ScheduleEntry($"{key}/{i}", time, location, x, y, direction, action, talk));
             }
 
-            scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys);
+            scheduleCondition = (new FriendshipConditionEntry(npcName, key, friendshipConditions), mailKeys, gotoKey);
             return entries;
         }
 
