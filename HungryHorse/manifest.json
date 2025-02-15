@@ -1,0 +1,12 @@
+{
+    "Name": "Hungry Horse",
+    "Author": "slO",
+    "Version": "0.0.3",
+    "Description": "말도 배고프다!",
+    "UniqueID": "slO.HungryHorse",
+    "EntryDll": "HungryHorse.dll",
+    "MinimumApiVersion": "3.18.0",
+    "UpdateKeys": [],
+    "Dependencies": [],
+    "EnableHarmony": true
+}

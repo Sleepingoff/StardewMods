@@ -1,0 +1,66 @@
+﻿ <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>HungryHorse</AssemblyName>
+    <RootNamespace>HungryHorse</RootNamespace>
+     <OutputPath>C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse</OutputPath>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <EnableGameDebugging>true</EnableGameDebugging>
+    <EnableModDeploy>false</EnableModDeploy>
+    <EnableModZip>false</EnableModZip>
+       <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+
+<Target Name="PreBuildEvent" BeforeTargets="Build">
+    <Exec Command="cmd /c echo === Build started at %DATE% %TIME% ===" />
+</Target>
+
+<Target Name="PostBuildEvent" AfterTargets="Build">
+    <Exec Command="cmd /c echo === Build completed at %DATE% %TIME% ===" />
+</Target>
+
+
+  <ItemGroup>
+    <Content Include="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="i18n/**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+<ItemGroup>
+    <!-- Mod Entry -->
+    <Compile Include="HungryHorse.cs" />
+</ItemGroup>
+
+
+  <ItemGroup>
+   
+    <Reference Include="StardewValley">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Stardew Valley.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="StardewModdingAPI">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\StardewModdingAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+      <Reference Include="StardewValley.GameData" Version="1.6.14.24317">
+        <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\StardewValley.GameData.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
+    <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.3.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Lib.Harmony" Version="2.2.2" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.5" />
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.0.1641" />
+
+    <Reference Include="ContentPatcher" HintPath="$(GameModsPath)\ContentPatcher\ContentPatcher.dll" Private="False" />
+
+  </ItemGroup>
+</Project>
