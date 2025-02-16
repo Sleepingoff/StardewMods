@@ -7,12 +7,16 @@ using Microsoft.Xna.Framework.Graphics;
 using System.Reflection;
 using NPCSchedulers.UI;
 using NPCSchedulers.DATA;
+using Microsoft.Xna.Framework.Input;
+using StardewModdingAPI.Utilities;
+using Microsoft.Xna.Framework;
 
 namespace NPCSchedulers
 {
 
     public class ModConfig
     {
+        public SButton Key { get; set; } = SButton.F12;
         public bool Immediately { get; set; } = true;
         public bool DayStated { get; set; } = true;
         public bool NotApply { get; set; } = false;
@@ -26,7 +30,12 @@ namespace NPCSchedulers
         {
             if (!NpcScheduleKeys.ContainsKey(npc))
             {
-                NpcScheduleKeys[npc] = new Dictionary<string, bool>() { { key, value } };
+                NpcScheduleKeys.Add(npc, new Dictionary<string, bool>() { { key, value } });
+
+            }
+            else
+            {
+                NpcScheduleKeys[npc][key] = value;
             }
         }
 
@@ -60,7 +69,7 @@ namespace NPCSchedulers
     }
     public class ModEntry : Mod
     {
-        private ModConfig Config = new();
+        public ModConfig Config = new();
         private SchedulePage schedulePage;
         private bool isProfileMenuOpen = false;
 
@@ -151,6 +160,19 @@ namespace NPCSchedulers
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
+            if (!Context.IsWorldReady) return;
+            GameLocation gameLocation = Game1.currentLocation;
+
+            NPC npcAtCursor = gameLocation.isCharacterAtTile(Game1.currentCursorTile);
+            if (npcAtCursor == null) npcAtCursor = gameLocation.isCharacterAtTile(new Vector2(Game1.currentCursorTile.X, Game1.currentCursorTile.Y + 1));
+            if (e.Button == Config.Key && npcAtCursor != null)
+            {
+
+                // 새 프로필 및 스케줄 편집 메뉴 열기
+                var allSocialEntries = new List<SocialPage.SocialEntry>(); // You need to populate this list as required
+                Game1.activeClickableMenu = new ProfileMenu(new SocialPage.SocialEntry(npcAtCursor, Game1.player.friendshipData[npcAtCursor.Name], npcAtCursor.GetData()), allSocialEntries);
+                schedulePage.ToggleSchedulePage((ProfileMenu)Game1.activeClickableMenu);
+            }
 
             //e 혹은 esc를 누르면 스케줄러 창 닫기
 
@@ -183,10 +205,13 @@ namespace NPCSchedulers
         }
         private void OnDayStarted(object sender, DayStartedEventArgs e)
         {
-            List<string> NPCList = ScheduleDataManager.GetAllNPCListByUser();
-            foreach (string npcName in NPCList)
+            if (Config.DayStated)
             {
-                ScheduleDataManager.ApplyScheduleToNPC(npcName);
+                List<string> NPCList = ScheduleDataManager.GetAllNPCListByUser();
+                foreach (string npcName in NPCList)
+                {
+                    ScheduleDataManager.ApplyScheduleToNPC(npcName, Config);
+                }
             }
         }
         private void OnRenderedActiveMenu(object sender, RenderedActiveMenuEventArgs e)
@@ -198,7 +223,8 @@ namespace NPCSchedulers
         }
         private void OnMenuChanged(object sender, MenuChangedEventArgs e)
         {
-            RegisterConfig();
+            if (e.NewMenu == null)
+                RegisterConfig();
         }
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
@@ -243,36 +269,47 @@ namespace NPCSchedulers
                 reset: () => this.Helper.ReadConfig<ModConfig>(),
                 save: () => this.Helper.WriteConfig(this.Config)
             );
-
+            configMenu.AddKeybind(
+                mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.Key").Default("Key"),
+                getValue: () => this.Config.Key,
+                setValue: value => this.Config.Key = value
+            );
             configMenu.AddSectionTitle(
                 mod: this.ModManifest,
                 text: () => Helper.Translation.Get("Config.When").Default("When Apply Schedule")
             );
-            configMenu.AddBoolOption(mod: this.ModManifest,
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
                 name: () => Helper.Translation.Get("Config.Immediately").Default("Immediately"),
                 getValue: () => this.Config.Immediately,
                 setValue: value => this.Config.Immediately = value
             );
-            configMenu.AddBoolOption(mod: this.ModManifest,
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
                 name: () => Helper.Translation.Get("Config.DayStated").Default("DayStated"),
                 getValue: () => this.Config.DayStated,
                 setValue: value => this.Config.DayStated = value
             );
-            configMenu.AddBoolOption(mod: this.ModManifest,
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
                 name: () => Helper.Translation.Get("Config.NotApply").Default("NotApply"),
                 getValue: () => this.Config.NotApply,
                 setValue: value => this.Config.NotApply = value
                 );
+
             configMenu.AddSectionTitle(
                 mod: this.ModManifest,
                 text: () => Helper.Translation.Get("Config.What").Default("What Schedule (not for 'NotApply')")
             );
-            configMenu.AddBoolOption(mod: this.ModManifest,
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
                 name: () => Helper.Translation.Get("Config.All").Default("All"),
                 getValue: () => this.Config.All,
                 setValue: value => this.Config.All = value
             );
-            configMenu.AddBoolOption(mod: this.ModManifest,
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
                 name: () => Helper.Translation.Get("Config.Selected").Default("Selected"),
                 getValue: () => this.Config.Selected,
                 setValue: value => this.Config.Selected = value
@@ -289,15 +326,19 @@ namespace NPCSchedulers
                     mod: this.ModManifest,
                     text: () => character.Name
                 );
-
                 foreach (string userKey in userKeys)
                 {
-                    this.Config.AddNpcScheduleKey(character.Name, userKey);
+                    this.Config.AddNpcScheduleKey(character.Name, userKey, Config.All);
                     configMenu.AddBoolOption(mod: this.ModManifest,
                         name: () => userKey,
                         getValue: () => this.Config.GetNpcSchedules(character.Name).Values.First(),
                         setValue: value => this.Config.UpdateNpcScheduleKey(character.Name, userKey, value)
                     );
+                }
+
+                if (Config.Immediately)
+                {
+                    ScheduleDataManager.ApplyScheduleToNPC(character.Name, Config);
                 }
             }
         }
