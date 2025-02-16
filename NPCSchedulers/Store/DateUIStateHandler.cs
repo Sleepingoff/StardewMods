@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using StardewValley;
 
 namespace NPCSchedulers.Store
 {
@@ -14,8 +15,8 @@ namespace NPCSchedulers.Store
         }
         public override void InitData()
         {
-            selectedSeason = "Spring";
-            selectedDate = 1;
+            selectedSeason = Game1.currentSeason;
+            selectedDate = Game1.dayOfMonth;
         }
         public override (string, int) GetData()
         {
