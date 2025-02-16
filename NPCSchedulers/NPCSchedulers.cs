@@ -10,8 +10,57 @@ using NPCSchedulers.DATA;
 
 namespace NPCSchedulers
 {
+
+    public class ModConfig
+    {
+        public bool Immediately { get; set; } = true;
+        public bool DayStated { get; set; } = true;
+        public bool NotApply { get; set; } = false;
+        public bool All { get; set; } = true;
+        public bool Selected { get; set; } = false;
+        // NPC별 스케줄 키 저장소
+        public Dictionary<string, Dictionary<string, bool>> NpcScheduleKeys { get; set; } = new();
+
+        // 특정 NPC의 스케줄 키 추가 메서드
+        public void AddNpcScheduleKey(string npc, string key, bool value = true)
+        {
+            if (!NpcScheduleKeys.ContainsKey(npc))
+            {
+                NpcScheduleKeys[npc] = new Dictionary<string, bool>() { { key, value } };
+            }
+        }
+
+        // 특정 NPC의 특정 스케줄 키 삭제
+        public void RemoveNpcScheduleKey(string npc, string key)
+        {
+            if (NpcScheduleKeys.ContainsKey(npc) && NpcScheduleKeys[npc].ContainsKey(key))
+            {
+                NpcScheduleKeys[npc].Remove(key);
+                if (NpcScheduleKeys[npc].Count == 0)
+                {
+                    NpcScheduleKeys.Remove(npc);
+                }
+            }
+        }
+
+        // 특정 NPC의 특정 스케줄 키 값 업데이트
+        public void UpdateNpcScheduleKey(string npc, string key, bool value)
+        {
+            if (NpcScheduleKeys.ContainsKey(npc))
+            {
+                NpcScheduleKeys[npc][key] = value;
+            }
+        }
+
+        // 특정 NPC의 스케줄 키 목록 가져오기
+        public Dictionary<string, bool> GetNpcSchedules(string npc)
+        {
+            return NpcScheduleKeys.ContainsKey(npc) ? NpcScheduleKeys[npc] : null;
+        }
+    }
     public class ModEntry : Mod
     {
+        private ModConfig Config = new();
         private SchedulePage schedulePage;
         private bool isProfileMenuOpen = false;
 
@@ -26,9 +75,11 @@ namespace NPCSchedulers
         private void RegisterEvents()
         {
             Helper.Events.Display.RenderedActiveMenu += OnRenderedActiveMenu;
+            Helper.Events.Display.MenuChanged += OnMenuChanged;
             Helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             Helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
             Helper.Events.GameLoop.DayStarted += OnDayStarted;
+            Helper.Events.GameLoop.GameLaunched += OnGameLaunched;
             Helper.Events.Input.ButtonPressed += OnButtonPressed;
             Helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
         }
@@ -125,7 +176,6 @@ namespace NPCSchedulers
             }
             else if (SchedulePage.IsOpenMailList(x, y))
             {
-
                 schedulePage.ToggleMailList();
             }
 
@@ -146,7 +196,10 @@ namespace NPCSchedulers
                 SchedulePage.DrawButton(Game1.spriteBatch);
             }
         }
-
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e)
+        {
+            RegisterConfig();
+        }
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
             isProfileMenuOpen = Game1.activeClickableMenu is ProfileMenu;
@@ -154,7 +207,10 @@ namespace NPCSchedulers
             {
                 SchedulePage.CreateScheduleButton((ProfileMenu)Game1.activeClickableMenu);
                 ProfileMenu profileMenu = (ProfileMenu)Game1.activeClickableMenu;
-                if (schedulePage == null || schedulePage.npcName != profileMenu.Current.Character.Name) schedulePage = new SchedulePage(profileMenu.Current.Character.Name);
+                if (schedulePage == null || schedulePage.npcName != profileMenu.Current.Character.Name)
+                {
+                    schedulePage = new SchedulePage(profileMenu.Current.Character.Name);
+                }
             }
 
         }
@@ -163,6 +219,88 @@ namespace NPCSchedulers
             ScheduleDataManager.LoadAllSchedules();
         }
 
+
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            RegisterConfig();
+        }
+
+        public void RegisterConfig()
+        {
+            var configMenu = Helper.ModRegistry.GetApi<GenericModConfigMenu.IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+
+            if (configMenu == null)
+            {
+                Monitor.Log("Generic Mod Config Menu not found.", LogLevel.Warn);
+
+                return;
+            }
+
+            configMenu.Unregister(this.ModManifest);
+
+            configMenu.Register(
+                mod: this.ModManifest,
+                reset: () => this.Helper.ReadConfig<ModConfig>(),
+                save: () => this.Helper.WriteConfig(this.Config)
+            );
+
+            configMenu.AddSectionTitle(
+                mod: this.ModManifest,
+                text: () => Helper.Translation.Get("Config.When").Default("When Apply Schedule")
+            );
+            configMenu.AddBoolOption(mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.Immediately").Default("Immediately"),
+                getValue: () => this.Config.Immediately,
+                setValue: value => this.Config.Immediately = value
+            );
+            configMenu.AddBoolOption(mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.DayStated").Default("DayStated"),
+                getValue: () => this.Config.DayStated,
+                setValue: value => this.Config.DayStated = value
+            );
+            configMenu.AddBoolOption(mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.NotApply").Default("NotApply"),
+                getValue: () => this.Config.NotApply,
+                setValue: value => this.Config.NotApply = value
+                );
+            configMenu.AddSectionTitle(
+                mod: this.ModManifest,
+                text: () => Helper.Translation.Get("Config.What").Default("What Schedule (not for 'NotApply')")
+            );
+            configMenu.AddBoolOption(mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.All").Default("All"),
+                getValue: () => this.Config.All,
+                setValue: value => this.Config.All = value
+            );
+            configMenu.AddBoolOption(mod: this.ModManifest,
+                name: () => Helper.Translation.Get("Config.Selected").Default("Selected"),
+                getValue: () => this.Config.Selected,
+                setValue: value => this.Config.Selected = value
+            );
+            configMenu.AddSectionTitle(
+                mod: this.ModManifest,
+                text: () => Helper.Translation.Get("Config.Select").Default("Select Schedule")
+            );
+            var characters = Utility.getAllCharacters();
+            foreach (var character in characters)
+            {
+                var userKeys = ScheduleDataManager.GetEditedScheduleKeys(character.Name);
+                configMenu.AddSectionTitle(
+                    mod: this.ModManifest,
+                    text: () => character.Name
+                );
+
+                foreach (string userKey in userKeys)
+                {
+                    this.Config.AddNpcScheduleKey(character.Name, userKey);
+                    configMenu.AddBoolOption(mod: this.ModManifest,
+                        name: () => userKey,
+                        getValue: () => this.Config.GetNpcSchedules(character.Name).Values.First(),
+                        setValue: value => this.Config.UpdateNpcScheduleKey(character.Name, userKey, value)
+                    );
+                }
+            }
+        }
         public static ModEntry Instance { get; private set; }
     }
 

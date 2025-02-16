@@ -35,6 +35,8 @@
     </Content>
   </ItemGroup>
 <ItemGroup>
+    <!-- Config 관련 파일 -->
+    <Compile Include="GMCM.cs" />
     <!-- Type 관련 파일 -->
     <Compile Include="Types\Type.cs" />
     <Compile Include="Types\Schedule.cs" />

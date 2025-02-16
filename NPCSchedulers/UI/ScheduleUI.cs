@@ -2,10 +2,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using NPCSchedulers.DATA;
 using NPCSchedulers.Store;
-using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
-using StardewValley.Extensions;
 using StardewValley.Menus;
 
 namespace NPCSchedulers.UI
@@ -21,8 +19,6 @@ namespace NPCSchedulers.UI
         private OptionsTextBox gotoTextBox;
         private ClickableTextureComponent checkGotoButton;
         private List<ScheduleEntry> entries; // 🔥 여러 개의 상세 일정 포함
-        private List<ScheduleEntry> gotoEntries;
-        private List<ScheduleEntry> scheduleEntries;
         private FriendshipTargetUI friendshipTargetUI;
         private MailTargetUI mailTargetUI;
         private Rectangle scheduleBox;
@@ -48,6 +44,7 @@ namespace NPCSchedulers.UI
         private void UpdateScheduleEntries()
         {
             this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
+            this.gotoKey = uiStateManager.GetGotoKey(scheduleKey);
         }
         public override bool Draw(SpriteBatch b)
         {
@@ -55,6 +52,7 @@ namespace NPCSchedulers.UI
             gotoTextBox.bounds = new Rectangle((int)position.X + 200, (int)position.Y + 40 + friendshipTargetUI.Height, 300, 50);
 
             UpdateScheduleEntries();
+            Height = entries.Count * 80 + mailTargetUI.Height + friendshipTargetUI.Height + 300 + (uiStateManager.IsEditMode ? 600 : 0);
             scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
 
             Vector2 titleDisplayPosition = new Vector2(scheduleBox.X + 10, scheduleBox.Y);
@@ -168,7 +166,17 @@ namespace NPCSchedulers.UI
             Vector2 detailDisplayPosition = new Vector2(position.X, 0);
             foreach (var entry in entries)
             {
+                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset + 50, 600, 80);
 
+                Rectangle deleteButtonBounds = new Rectangle(detailDisplay.Right - 40, detailDisplay.Y, 32, 32);
+                if (deleteButtonBounds.Contains(x, y))
+                {
+                    // 🔹 삭제 요청
+                    uiStateManager.SetScheduleKey(scheduleKey);
+                    uiStateManager.DeleteScheduleEntry(scheduleKey, entry);
+                    UpdateScheduleEntries();
+                    return;
+                }
 
                 if (entry.Contains(x, y))
                 {
@@ -181,16 +189,7 @@ namespace NPCSchedulers.UI
                     }
 
                 }
-                Rectangle detailDisplay = new Rectangle((int)detailDisplayPosition.X, (int)detailDisplayPosition.Y + yOffset + 50, 600, 80);
                 entry.SetBounds(detailDisplay.X, detailDisplay.Y, detailDisplay.Width, detailDisplay.Height);
-                Rectangle deleteButtonBounds = new Rectangle(detailDisplay.Right - 40, detailDisplay.Y, 32, 32);
-                if (deleteButtonBounds.Contains(x, y))
-                {
-                    // 🔹 삭제 요청
-                    uiStateManager.SetScheduleKey(scheduleKey);
-                    uiStateManager.DeleteScheduleEntry(scheduleKey, entry);
-                    return;
-                }
                 yOffset += 100;
 
             }
@@ -283,7 +282,7 @@ namespace NPCSchedulers.UI
             {
                 base.Draw(b);
                 UpdateSchedules();
-                scheduleUI.Draw(b);
+                scheduleUI?.Draw(b);
                 base.DrawEnd(b);
                 if (uiStateManager.IsEditMode) ScheduleEditUI.DrawTooltip(b, ScheduleUI.scheduleEditUI);
             }

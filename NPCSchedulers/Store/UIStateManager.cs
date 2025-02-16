@@ -42,20 +42,26 @@ namespace NPCSchedulers.Store
         {
             NPC npc = Game1.getCharacterFromName(npcName);
             SetCurrentNpc(npc);
-
             dateHandler = new DateUIStateHandler(CurrentNPC.Name, ScheduleKey);
             // 🔥 scheduleKey마다 friendshipHandler를 개별적으로 관리해야 함
             friendshipHandler = new Dictionary<string, FriendshipUIStateHandler>();
             mailHandler = new();
+
+
+
+            InitScheduleData();
 
             //리스트마다 수행
             foreach (var key in ScheduleDataManager.GetFinalSchedule(CurrentNPC.Name).Keys)
             {
                 friendshipHandler[key] = new FriendshipUIStateHandler(CurrentNPC.Name, key);
                 mailHandler[key] = new MailUIStateHandler(CurrentNPC.Name, key);
+                ScheduleData = ScheduleDataManager.GetAllScheduleByKey(npcName, key);
+                if (ScheduleData.ContainsKey(key))
+                {
+                    mailHandler[key].SetGotoKey(ScheduleData[key].Item4);
+                }
             }
-
-            InitScheduleData();
         }
         #endregion
         public static Rectangle GetMenuPosition()
@@ -158,7 +164,7 @@ namespace NPCSchedulers.Store
         //key: npcName, value: heartLevel
         public Dictionary<string, int> GetFriendshipCondition(string scheduleKey = null)
         {
-            return scheduleKey == null ? new() : friendshipHandler[scheduleKey].GetData();
+            return scheduleKey == null && ScheduleKey == null ? new() : friendshipHandler[scheduleKey ?? ScheduleKey].GetData();
         }
 
         //key: npcName, value: heartLevel
@@ -184,7 +190,6 @@ namespace NPCSchedulers.Store
 
         public void SetMailCondition(string mailKey, bool condition)
         {
-            Console.WriteLine(ScheduleKey);
             if (ScheduleKey == null) return;
             Dictionary<string, bool> data = new Dictionary<string, bool> { { mailKey, condition } };
             mailHandler[ScheduleKey].UpdateData(data);
@@ -197,7 +202,8 @@ namespace NPCSchedulers.Store
 
         public string GetGotoKey(string scheduleKey = null)
         {
-            return mailHandler[scheduleKey ?? ScheduleKey].GetGotoKey();
+            if (ScheduleKey == null || !ScheduleData.ContainsKey(scheduleKey ?? ScheduleKey)) return null;
+            return mailHandler[scheduleKey ?? ScheduleKey].GetGotoKey() ?? ScheduleData[scheduleKey ?? ScheduleKey].Item4;
         }
 
         public void SetGotoKey(string newGotoKey)
@@ -221,7 +227,8 @@ namespace NPCSchedulers.Store
         {
             List<ScheduleEntry> scheduleEntries = GetScheduleEntries(scheduleKey);
 
-            scheduleEntries.Remove(entry);
+            scheduleEntries.RemoveWhere(e => e.Key == entry.Key);
+
 
             SetScheduleDataByList(scheduleEntries);
         }
@@ -261,12 +268,14 @@ namespace NPCSchedulers.Store
         /// 스케줄 리스트 반환
         /// </summary>
 
-        public List<ScheduleEntry> GetScheduleEntries(string key = null)
+        public List<ScheduleEntry> GetScheduleEntries(string scheduleKey = null)
         {
-            GetSchedule();
-            if (ScheduleData.ContainsKey(key ?? ScheduleKey))
-                return ScheduleData[key ?? ScheduleKey].Item2;
-            else return new();
+            if (ScheduleKey != null && ScheduleData.ContainsKey(scheduleKey ?? ScheduleKey))
+            {
+                // ✅ 새로운 리스트로 반환하여 원본 데이터 유지 방지
+                return ScheduleData[scheduleKey ?? ScheduleKey].Item2;
+            }
+            return new List<ScheduleEntry>() { new ScheduleEntry(scheduleKey, 610, "Town", 0, 0, 2, "None", "None") };
         }
 
         /// <summary>
@@ -302,6 +311,7 @@ namespace NPCSchedulers.Store
                 }
             }
             //스케줄 추가 및 시간 순 정렬
+            newEntry.Key += 99;
             scheduleEntries.Add(newEntry);
             scheduleEntries.Sort((a, b) => a.Time.CompareTo(b.Time));
             SetScheduleDataByList(scheduleEntries);
@@ -328,13 +338,16 @@ namespace NPCSchedulers.Store
             var friendship = GetFriendshipCondition();
             var friendshipEntry = new FriendshipConditionEntry(CurrentNPC.Name, ScheduleKey, friendship);
             // 깊은 복사를 수행하여 기존 ScheduleEntry 객체를 수정하지 않도록 함
+            if (!ScheduleData.ContainsKey(ScheduleKey)) ScheduleData.Add(ScheduleKey, new());
             var newEntries = ScheduleData[ScheduleKey].Item2
                 .Select(entry => entry) // 생성자를 이용한 깊은 복사
                 .ToList();
+
             var mail = GetMailCondition();
             var mailEntry = MailUIStateHandler.FilterData(mail).Select(m => m.Key).ToList();
             var gotoKey = GetGotoKey();
             ScheduleData[ScheduleKey] = (friendshipEntry, new List<ScheduleEntry>(newEntries), mailEntry, gotoKey);
+
             ScheduleDataManager.SaveUserSchedule(CurrentNPC.Name, ScheduleKey, ScheduleData);
         }
         public void SetScheduleDataByKey(string key, FriendshipConditionEntry friendshipConditionEntry = null, List<ScheduleEntry> newSchedule = null, List<string> mailEntry = null, string gotoKey = null)
