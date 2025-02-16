@@ -104,9 +104,9 @@ namespace NPCSchedulers.DATA
                 kvp => kvp.Key, // 🔹 NPC 이름
                 kvp => kvp.Value.RawData // 🔹 해당 NPC의 RawData (scheduleKey -> scheduleValue)
             );
-
             string json = JsonConvert.SerializeObject(formattedData, Formatting.Indented);
             File.WriteAllText(FilePath, json);
+
         }
 
 

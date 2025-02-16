@@ -1,3 +1,4 @@
+using ContentPatcher;
 using Microsoft.Xna.Framework;
 using MonoMod.Utils;
 using NPCSchedulers.DATA;
@@ -313,7 +314,7 @@ namespace NPCSchedulers
             var formattedMail = FormatMailEntry(mailKeys);
             string formattedGoto = "";
 
-            if (formattedMail.Length > 0 && scheduleList.Count > 0)
+            if (formattedMail.Length > 0 && formattedSchedule.Length > 0)
             {
                 if (gotoKey != null && gotoKey.Length > 0)
                 {
@@ -322,7 +323,8 @@ namespace NPCSchedulers
                 }
                 else
                 {
-                    formattedGoto = FormatGOTOEntry("season");
+                    string season = gotoKey != key ? "season" : "default";
+                    formattedGoto = FormatGOTOEntry(season);
                     //메일은 있는데 goto키가 없을 경우 기본 스케줄로 할당한다.
                     Game1.addHUDMessage(new HUDMessage("Assigned to 'season' key due to missing GOTO key.", 2));
                 }
@@ -333,23 +335,33 @@ namespace NPCSchedulers
                 Game1.addHUDMessage(new HUDMessage("Not Applied GOTO key due to remaining schedules", 2));
             }
 
+            if (formattedSchedule.Length == 0)
+            {
+                if (gotoKey != null && gotoKey.Length > 0)
+                {
+                    formattedGoto = FormatGOTOEntry(gotoKey);
+                    Game1.addHUDMessage(new HUDMessage("applied GOTO scheduleKey", 2));
+                }
+                else
+                {
+                    string season = gotoKey != key ? "season" : "default";
+                    formattedGoto = FormatGOTOEntry(season);
+                    //메일은 있는데 goto키가 없을 경우 기본 스케줄로 할당한다.
+                    Game1.addHUDMessage(new HUDMessage("Assigned to 'season' key due to missing GOTO key.", 2));
+                }
+            }
+
 
             string formattedFriendshipCondition = FormatFriendshipEntry(friendshipCondition);
 
             string newScheduleEntry = formattedFriendshipCondition + formattedMail + formattedGoto + formattedSchedule;
 
             //v0.0.1 ✅ `NPCScheduleDataType.RawData`를 통해 접근하도록 변경
-            if (formattedSchedule.Length == 0)
-            {
-                userSchedules[npcName].RawData.Remove(key);
-            }
-            else
-            {
-                userSchedules[npcName].RawData[key] = newScheduleEntry;
-            }
+            userSchedules[npcName].RawData[key] = newScheduleEntry.Trim("/".ToCharArray());
 
             userSchedule.SaveUserSchedules(userSchedules);
             Game1.addHUDMessage(new HUDMessage("saved schedule", 2));
+            LoadAllSchedules();
             ApplyScheduleToNPC(npcName);
         }
 
@@ -473,7 +485,52 @@ namespace NPCSchedulers
 
             return new ScheduleEntry(entryKey, time, location, x, y, direction, action, talk);
         }
+        public static ScheduleDataType GetAllScheduleByKey(string npcName, string scheduleKey)
+        {
+            ScheduleDataType scheduleEntries = new();
+            Dictionary<string, OriginalScheduleDataType> originalData = originalSchedule.LoadOriginalSchedules();
+            Dictionary<string, UserScheduleDataType> userData = UserScheduleData.LoadUserSchedules();
 
+            // 🔹 유저 데이터에서 먼저 확인
+            if (userData.ContainsKey(npcName) && userData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, userData[npcName].RawData[scheduleKey], out var scheduleCondition);
+                (FriendshipConditionEntry friendshipCondition, List<string> mailKeys, string gotoKey) = scheduleCondition;
+                scheduleEntries[scheduleKey] = (friendshipCondition, parsedEntries, mailKeys, gotoKey);
+            }
+
+            // 🔹 원본 데이터에서 확인
+            else if (originalData.ContainsKey(npcName) && originalData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, originalData[npcName].RawData[scheduleKey], out var scheduleCondition);
+                (FriendshipConditionEntry friendshipCondition, List<string> mailKeys, string gotoKey) = scheduleCondition;
+                scheduleEntries[scheduleKey] = (friendshipCondition, parsedEntries, mailKeys, gotoKey);
+            }
+
+            return scheduleEntries;
+        }
+        public static Dictionary<string, List<ScheduleEntry>> GetScheduleByKey(string npcName, string scheduleKey)
+        {
+            Dictionary<string, List<ScheduleEntry>> scheduleEntries = new();
+            Dictionary<string, OriginalScheduleDataType> originalData = originalSchedule.LoadOriginalSchedules();
+            Dictionary<string, UserScheduleDataType> userData = UserScheduleData.LoadUserSchedules();
+
+            // 🔹 유저 데이터에서 먼저 확인
+            if (userData.ContainsKey(npcName) && userData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, userData[npcName].RawData[scheduleKey], out _);
+                scheduleEntries[scheduleKey] = parsedEntries;
+            }
+
+            // 🔹 원본 데이터에서 확인
+            else if (originalData.ContainsKey(npcName) && originalData[npcName].RawData.ContainsKey(scheduleKey))
+            {
+                var parsedEntries = ScheduleEntry.ParseScheduleEntries(npcName, scheduleKey, originalData[npcName].RawData[scheduleKey], out _);
+                scheduleEntries[scheduleKey] = parsedEntries;
+            }
+
+            return scheduleEntries;
+        }
         public static Dictionary<string, List<ScheduleEntry>> GetScheduleByKeys(string npcName, string scheduleKey, string currentKey)
         {
             Dictionary<string, List<ScheduleEntry>> scheduleEntries = new();
@@ -543,48 +600,85 @@ namespace NPCSchedulers
         }
         public static void ApplyScheduleToNPC(string npcName)
         {
+
             NPC npc = Game1.getCharacterFromName(npcName);
             if (npc == null) return;
+
             ScheduleDataType schedules = GetUserSchedule(npcName);
             if (schedules.Count == 0) return;
-            //v0.0.2 + 오늘 스케줄과 같은 키만 수정
-            //v0.0.3 + 스케줄 키가 없는 경우 기본 스케줄로 변경
+
             foreach (var key in schedules.Keys)
             {
-                //v0.0.4 +
-                //todo: 우선순위가 더 높은 키로 사용자가 추가하는 경우
                 if (npc.ScheduleKey != key) continue;
-                var (_, scheduleList, _, _) = schedules[key];
 
+                var (friendshipCondition, scheduleList, mailList, gotoKey) = schedules[key];
+
+                // ✅ 우선순위 조건 체크 (친밀도 및 메일 조건 확인)
+                bool meetsCondition = true;
+
+                if (friendshipCondition.Condition.Count > 0)
+                {
+                    foreach (var (targetNPC, requiredHearts) in friendshipCondition.Condition)
+                    {
+                        int currentHearts = Game1.player.getFriendshipHeartLevelForNPC(targetNPC);
+                        if (currentHearts < requiredHearts)
+                        {
+                            meetsCondition = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (mailList.Count > 0)
+                {
+                    foreach (var mailKey in mailList)
+                    {
+                        if (!Game1.player.hasOrWillReceiveMail(mailKey))
+                        {
+                            meetsCondition = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!meetsCondition) continue;
+
+                // ✅ GOTO 스케줄 처리 (재귀 호출 X, 직접 병합 방식 적용)
+                if (!string.IsNullOrEmpty(gotoKey) && schedules.ContainsKey(gotoKey))
+                {
+                    // GOTO 키의 스케줄 가져오기
+                    var (gotoFriendshipCondition, gotoScheduleList, gotoMailList, _) = schedules[gotoKey];
+
+                    // 기존 scheduleList에 GOTO 키의 스케줄을 추가 (단, 중복 시간은 덮어씌우지 않음)
+                    foreach (var entry in gotoScheduleList)
+                    {
+                        if (!scheduleList.Any(e => e.Time == entry.Time))
+                        {
+                            scheduleList.Add(entry);
+                        }
+                    }
+
+                    Game1.addHUDMessage(new HUDMessage($"Merged GOTO {gotoKey} into {npcName}'s schedule", 1));
+                }
+
+                // ✅ 기존 스케줄 초기화 후 새로운 스케줄 적용
+                npc.followSchedule = false;
+
+                var newScheduleList = new Dictionary<int, SchedulePathDescription>();
+                string prevLocation = npc.currentLocation.Name;
                 foreach (var entry in scheduleList)
                 {
-                    // 🔹 경로 설정: 현재는 목표 위치 하나만 설정 (추후 개선 가능)
-                    Stack<Point> route = new Stack<Point>();
-                    route.Push(new Point(entry.X, entry.Y));
 
-                    // 🔹 SchedulePathDescription 객체 생성
-                    var pathDescription = new SchedulePathDescription(
-                        route,                        // 이동 경로
-                        entry.Direction,              // 방향
-                        entry.Action ?? entry.Action,       // 도착 후 행동 (null 방지)
-                        entry.Talk ?? entry.Talk,             // 도착 후 대사 (null 방지)
-                        entry.Location,               // 도착할 위치
-                        new Point(entry.X, entry.Y)   // 목표 타일
-                    );
-
-                    // 🔹 기존 키를 제거하고 다시 추가
-                    if (npc.Schedule.ContainsKey(entry.Time))
-                    {
-                        npc.Schedule.Remove(entry.Time);
-                    }
-                    npc.Schedule.Add(entry.Time, pathDescription);
-
+                    var pathDescription = npc.pathfindToNextScheduleLocation(key, prevLocation, npc.TilePoint.X, npc.TilePoint.Y, entry.Location, entry.X, entry.Y, entry.Direction, entry.Action, entry.Talk);
+                    prevLocation = entry.Location;
                 }
-                bool loaded = npc.TryLoadSchedule(key);
-                if (loaded) Game1.addHUDMessage(new HUDMessage($"applied {npcName}'s schedule with {key}", 1));
+                // ✅ 스케줄 적용 여부 확인
+                bool loaded = npc.TryLoadSchedule(key, newScheduleList);
+                if (loaded) Game1.addHUDMessage(new HUDMessage($"Applied {npcName}'s schedule with {key}", 1));
             }
-
         }
+
+
 
 
     }
