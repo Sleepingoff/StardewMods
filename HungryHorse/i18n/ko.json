@@ -1,0 +1,20 @@
+{
+    "Config.Mod": "모드 활성화",
+    "Config.MaxStamina": "최대 기력",
+    "Config.StaminaDecreaseRate": "기력 감소 속도",
+    "Config.RateDesc": "틱당 감소량. 최소값: 1f",
+    "Config.FriendshipPerDayAfterInteraction": "하루 호감도 증가량 (상호작용)",
+    "Config.FriendshipByFood": "음식 제공 시 호감도 증가량",
+    "Desc.Sleep": "말이 뻗었습니다!",
+    "Desc.Tired": "말이 지쳐서 더 이상 달릴 수 없습니다!",
+    "Desc.Happy": "말이 기뻐합니다!",
+    "Desc.Full": "말이 이미 배가 부릅니다!",
+    "Desc.Delicious": "말이 맛있게 먹었습니다!",
+    "Desc.NotFood": "이건 말이 먹을 수 없는 음식입니다!",
+    "Buff.Source": "속도 증가",
+    "Buff.Name": "이동 속도 증가",
+    "Buff.Desc": "말을 타고 있는 동안 이동 속도가 증가합니다!",
+    "DeBuff.Source": "속도 감소",
+    "DeBuff.Name": "이동 속도 감소",
+    "DeBuff.Desc": "이동 속도가 느려졌습니다!"
+}

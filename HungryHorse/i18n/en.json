@@ -1,0 +1,20 @@
+{
+    "Config.Mod": "Enable Mod",
+    "Config.MaxStamina": "Max Stamina",
+    "Config.StaminaDecreaseRate": "Stamina Decrease Rate",
+    "Config.RateDesc": "Rate applied per tick. Min value: 1f",
+    "Config.FriendshipPerDayAfterInteraction": "Friendship Gain per Day (Interaction)",
+    "Config.FriendshipByFood": "Friendship Gain from Feeding",
+    "Desc.Sleep": "The horse has collapsed!",
+    "Desc.Tired": "The horse is too tired to run anymore!",
+    "Desc.Happy": "The horse is happy!",
+    "Desc.Full": "The horse is already full!",
+    "Desc.Delicious": "The horse ate happily!",
+    "Desc.NotFood": "This is not food the horse can eat!",
+    "Buff.Source": "Speed Boost",
+    "Buff.Name": "Movement Speed Increase",
+    "Buff.Desc": "Movement speed increases while riding the horse!",
+    "DeBuff.Source": "Speed Reduction",
+    "DeBuff.Name": "Movement Speed Decrease",
+    "DeBuff.Desc": "Movement speed has been reduced!"
+}

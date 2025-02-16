@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HungryHorse")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+59c8c937564ba4503b03250d8264ac7b4bf16682")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5fecc771ba6af25850f2ccee0e19610d6fab026a")]
 [assembly: System.Reflection.AssemblyProductAttribute("HungryHorse")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HungryHorse")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

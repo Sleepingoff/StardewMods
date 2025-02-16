@@ -1,0 +1,15 @@
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\manifest.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\i18n\ko.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\HungryHorse.dll.config
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\HungryHorse.deps.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\HungryHorse.dll
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.csproj.AssemblyReference.cache
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.csproj.SuggestedBindingRedirects.cache
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.dll.config
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.AssemblyInfoInputs.cache
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.AssemblyInfo.cs
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.csproj.CoreCompileInputs.cache
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.sourcelink.json
+C:\Users\이지현\Desktop\Stardew Mod\HungryHorse\obj\Debug\HungryHorse.dll
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\HungryHorse\i18n\en.json
