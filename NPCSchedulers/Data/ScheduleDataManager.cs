@@ -362,7 +362,6 @@ namespace NPCSchedulers
             userSchedule.SaveUserSchedules(userSchedules);
             Game1.addHUDMessage(new HUDMessage("saved schedule", 2));
             LoadAllSchedules();
-            ApplyScheduleToNPC(npcName);
         }
 
         /// <summary>
@@ -598,8 +597,9 @@ namespace NPCSchedulers
             }
             return scheduleEntry;
         }
-        public static void ApplyScheduleToNPC(string npcName)
+        public static void ApplyScheduleToNPC(string npcName, ModConfig config)
         {
+            if (config.NotApply) return;
 
             NPC npc = Game1.getCharacterFromName(npcName);
             if (npc == null) return;
@@ -609,10 +609,11 @@ namespace NPCSchedulers
 
             foreach (var key in schedules.Keys)
             {
+
+                if (!((config.Selected || config.All) && config.NpcScheduleKeys[npcName][key])) continue;
                 if (npc.ScheduleKey != key) continue;
 
                 var (friendshipCondition, scheduleList, mailList, gotoKey) = schedules[key];
-
                 // ✅ 우선순위 조건 체크 (친밀도 및 메일 조건 확인)
                 bool meetsCondition = true;
 
@@ -663,23 +664,25 @@ namespace NPCSchedulers
 
                 // ✅ 기존 스케줄 초기화 후 새로운 스케줄 적용
                 npc.followSchedule = false;
-
+                npc.Schedule.Clear();
                 var newScheduleList = new Dictionary<int, SchedulePathDescription>();
                 string prevLocation = npc.currentLocation.Name;
+                Point prevTile = npc.TilePoint;
                 foreach (var entry in scheduleList)
                 {
+                    var pathDescription = npc.pathfindToNextScheduleLocation(key, prevLocation, prevTile.X, prevTile.Y, entry.Location, entry.X, entry.Y, entry.Direction, entry.Action, entry.Talk);
 
-                    var pathDescription = npc.pathfindToNextScheduleLocation(key, prevLocation, npc.TilePoint.X, npc.TilePoint.Y, entry.Location, entry.X, entry.Y, entry.Direction, entry.Action, entry.Talk);
                     prevLocation = entry.Location;
+                    prevTile.X = entry.X;
+                    prevTile.Y = entry.Y;
+
+                    newScheduleList.Add(entry.Time, pathDescription);
                 }
-                // ✅ 스케줄 적용 여부 확인
+                // ✅ 스케줄 적용 여부 확인 기존 스케줄이 적용되어버림
                 bool loaded = npc.TryLoadSchedule(key, newScheduleList);
                 if (loaded) Game1.addHUDMessage(new HUDMessage($"Applied {npcName}'s schedule with {key}", 1));
             }
         }
-
-
-
 
     }
 }
