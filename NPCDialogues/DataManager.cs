@@ -65,7 +65,7 @@ namespace NPCDialogues
                 }
             }
         }
-        protected static string LoadFileContents(string filePath)
+        public string LoadFileContents(string filePath)
         {
             if (!File.Exists(filePath)) return string.Empty;
 
@@ -79,6 +79,20 @@ namespace NPCDialogues
                 return npcData.ContainsKey(key) ? npcData[key] : null;
             }
             return null;
+        }
+        public (Dictionary<string, string>, Dictionary<string, string>) GetDialogues(string npcName)
+        {
+            Dictionary<string, string> originDialogues = new();
+            Dictionary<string, string> userDialogues = new();
+            if (npc_Dialogues.ContainsKey(npcName))
+            {
+                originDialogues = npc_Dialogues[npcName];
+            }
+            if (npc_DialoguesByUser.ContainsKey(npcName))
+            {
+                userDialogues = npc_DialoguesByUser[npcName];
+            }
+            return (originDialogues, userDialogues);
         }
 
         public HashSet<string> GetDialogueKeys(string npcName)
