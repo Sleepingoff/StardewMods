@@ -38,6 +38,8 @@
     <!-- Config 관련 파일 -->
     <Compile Include="GMCM.cs" />
 
+    <Compile Include="UIManager.cs" />
+    <Compile Include="DataManager.cs" />
     <!-- Mod Entry -->
     <Compile Include="NPCDialogues.cs" />
 </ItemGroup>
