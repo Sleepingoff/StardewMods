@@ -38,7 +38,9 @@
     <!-- Config 관련 파일 -->
     <Compile Include="GMCM.cs" />
 
+    <Compile Include="CustomTextBox.cs" />
     <Compile Include="DialogueUI.cs" />
+    <Compile Include="DialogueEditUI.cs" />
 
     
     <Compile Include="UIManager.cs" />

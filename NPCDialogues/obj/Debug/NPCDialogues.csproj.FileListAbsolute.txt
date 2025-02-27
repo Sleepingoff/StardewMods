@@ -1,0 +1,13 @@
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCDialogues\manifest.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCDialogues\NPCDialogues.dll.config
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCDialogues\NPCDialogues.deps.json
+C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\NPCDialogues\NPCDialogues.dll
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.csproj.AssemblyReference.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.csproj.SuggestedBindingRedirects.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.dll.config
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.AssemblyInfoInputs.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.AssemblyInfo.cs
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.csproj.CoreCompileInputs.cache
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.sourcelink.json
+C:\Users\이지현\Desktop\Stardew Mod\NPCDialogues\obj\Debug\NPCDialogues.dll

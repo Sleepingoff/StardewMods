@@ -1,19 +1,12 @@
 {
     "Name": "NPC Dialogues",
     "Author": "slO",
-    "Version": "0.0.1",
+    "Version": "1.0.2",
     "Description": "Allows players to view and modify NPC dialogues in-game.",
     "UniqueID": "slO.NPCDialogues",
-    "EntryDll": "NPCSchedulers.dll",
+    "EntryDll": "NPCDialogues.dll",
     "MinimumApiVersion": "3.18.0",
     "UpdateKeys": [
-        "Nexus:31494"
-    ],
-    "Dependencies": [
-        {
-            "UniqueID": "Pathoschild.ContentPatcher",
-            "IsRequired": false
-        }
-    ],
-    "EnableHarmony": true
+        "Nexus:31940"
+    ]
 }

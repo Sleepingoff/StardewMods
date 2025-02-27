@@ -1,26 +1,22 @@
 using Newtonsoft.Json;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Menus;
 
 namespace NPCDialogues
 {
     public class DataManager
     {
-        private string DataPath;
-        private string UserPath;
-        private IModHelper Helper;
+        private static string DataPath;
+        private static string UserPath;
 
-        public Dictionary<string, Dictionary<string, string>> npc_Dialogues = new();
-        public Dictionary<string, Dictionary<string, string>> npc_DialoguesByUser = new();
-        public DataManager(IModHelper helper)
+        public static Dictionary<string, Dictionary<string, string>> npc_Dialogues = new();
+        public static Dictionary<string, Dictionary<string, string>> npc_DialoguesByUser = new();
+
+        public static void InitData(IModHelper helper)
         {
-            Helper = helper;
             DataPath = Path.Combine(helper.DirectoryPath, "dialogues_data.json");
             UserPath = Path.Combine(helper.DirectoryPath, "dialogues.json");
-            InitData();
-        }
-        public void InitData()
-        {
             npc_Dialogues.Clear();
 
             var characters = Utility.getAllCharacters();
@@ -39,7 +35,7 @@ namespace NPCDialogues
 
             SaveOriginalDialogues();
         }
-        public void LoadData()
+        public static void LoadData()
         {
 
             npc_DialoguesByUser.Clear();
@@ -65,13 +61,13 @@ namespace NPCDialogues
                 }
             }
         }
-        public string LoadFileContents(string filePath)
+        public static string LoadFileContents(string filePath)
         {
             if (!File.Exists(filePath)) return string.Empty;
 
             return File.ReadAllText(filePath);
         }
-        public object GetDialogue(string npcName, string key)
+        public static object GetDialogue(string npcName, string key)
         {
             if (npc_Dialogues.ContainsKey(npcName) && npc_Dialogues[npcName] is
             Dictionary<string, string> npcData)
@@ -80,8 +76,9 @@ namespace NPCDialogues
             }
             return null;
         }
-        public (Dictionary<string, string>, Dictionary<string, string>) GetDialogues(string npcName)
+        public static (Dictionary<string, string>, Dictionary<string, string>) GetDialogues(string npcName)
         {
+            LoadData();
             Dictionary<string, string> originDialogues = new();
             Dictionary<string, string> userDialogues = new();
             if (npc_Dialogues.ContainsKey(npcName))
@@ -104,7 +101,7 @@ namespace NPCDialogues
             return new HashSet<string>();
         }
 
-        public void SaveOriginalDialogues()
+        public static void SaveOriginalDialogues()
         {
             string json = JsonConvert.SerializeObject(npc_Dialogues, Formatting.Indented);
 
@@ -112,19 +109,73 @@ namespace NPCDialogues
             File.WriteAllText(DataPath, json);
         }
 
-        public void SaveUserDialogues()
+        public static void SaveUserDialogues()
         {
             string json = JsonConvert.SerializeObject(npc_DialoguesByUser, Formatting.Indented);
 
             // 파일 저장
             File.WriteAllText(UserPath, json);
+            LoadData();
         }
-        protected object ParseFileContents(string fileContents)
+        protected static object ParseFileContents(string fileContents)
         {
             return string.IsNullOrWhiteSpace(fileContents)
                 ? new Dictionary<string, Dictionary<string, string>>()
                 : JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(fileContents)
                   ?? new Dictionary<string, Dictionary<string, string>>();
         }
+
+        public static void DeleteDialogue(string npcName, string key)
+        {
+            if (npc_DialoguesByUser.ContainsKey(npcName))
+            {
+                if (npc_DialoguesByUser[npcName].ContainsKey(key))
+                {
+                    npc_DialoguesByUser[npcName][key] = "";
+                }
+                else
+                {
+                    npc_DialoguesByUser[npcName].Add(key, "");
+                }
+            }
+            else
+            {
+                npc_DialoguesByUser[npcName] = new() { { key, "" } };
+            }
+
+            SaveUserDialogues();
+
+        }
+
+        public static void ApplyDialogueToAll()
+        {
+            var characters = Utility.getAllCharacters();
+            foreach (NPC character in characters)
+            {
+                if (!character.IsVillager) continue;
+                if (npc_DialoguesByUser.ContainsKey(character.Name))
+                    ApplyDialogueToNPC(character.Name, npc_DialoguesByUser[character.Name]);
+            }
+        }
+
+        public static void ApplyDialogueToNPC(string npcName, Dictionary<string, string> dialogue)
+        {
+            NPC npc = Game1.getCharacterFromName(npcName);
+            if (npc == null) { Console.WriteLine("cannot find NPC"); return; }
+            foreach (var (key, value) in dialogue)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    npc.Dialogue.Remove(key);
+                    Console.WriteLine($"remove dialogues({key}) / {npcName}");
+                }
+                else
+                {
+                    npc.Dialogue[key] = value;
+                    Console.WriteLine($"apply dialogues({key}) / {npcName}");
+                }
+            }
+        }
+
     }
 }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NPCDialogues")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4e795e4b0e75e53a874c4bf897c621c4eeec6070")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5b51f35a9494c5ded967cadd9fdefea9c8cbb1be")]
 [assembly: System.Reflection.AssemblyProductAttribute("NPCDialogues")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NPCDialogues")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
