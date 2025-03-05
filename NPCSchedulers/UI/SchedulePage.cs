@@ -15,7 +15,7 @@ namespace NPCSchedulers.UI
         private static bool isOpenFriendshipList = false;
         private static bool isOpenMailList = false;
 
-        private UIStateManager uiStateManager;
+        public UIStateManager uiStateManager;
 
 
         private static ScheduleDateUI scheduleDateUI;

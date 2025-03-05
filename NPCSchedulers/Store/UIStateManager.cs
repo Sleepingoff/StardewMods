@@ -9,6 +9,7 @@ using StardewValley.Network;
 
 namespace NPCSchedulers.Store
 {
+
     public class UIStateManager
     {
         #region field
@@ -17,7 +18,7 @@ namespace NPCSchedulers.Store
         public bool IsEditMode { get; private set; } = false;
         //현재 보여지는 List UI
         public string CurrentListUI { get; private set; } = "character";
-        public NPC CurrentNPC { get; private set; } = null;
+        public NPC CurrentNPC { get; set; } = null;
 
         //현재 수정 중인 스케줄 키
         public string ScheduleKey { get; private set; } = null;
@@ -123,6 +124,11 @@ namespace NPCSchedulers.Store
             CurrentNPC = npc;
         }
 
+        public List<string> GetActionList()
+        {
+            return ScheduleDataManager.GetActionList(CurrentNPC.Name);
+        }
+
         #endregion
 
         #region  date
@@ -140,7 +146,6 @@ namespace NPCSchedulers.Store
         public void SetCurrentDate((int, int) data)
         {
             var (direction, date) = data;
-
             string seasonDirection = "current";
             switch (direction)
             {

@@ -29,7 +29,7 @@ namespace NPCSchedulers.UI
             this.position = position;
             this.uiStateManager = uiStateManager;
             this.scheduleKey = scheduleKey;
-
+            uiStateManager.SetScheduleKey(scheduleKey);
             this.entries = uiStateManager.GetScheduleEntries(scheduleKey);
             // 🔹 스케줄 박스 크기 설정    
             friendshipTargetUI = new FriendshipTargetUI(new Vector2((int)position.X, (int)position.Y + 60), scheduleKey, uiStateManager);
@@ -52,8 +52,8 @@ namespace NPCSchedulers.UI
             gotoTextBox.bounds = new Rectangle((int)position.X + 200, (int)position.Y + 40 + friendshipTargetUI.Height, 300, 50);
 
             UpdateScheduleEntries();
-            Height = entries.Count * 80 + mailTargetUI.Height + friendshipTargetUI.Height + 300 + (uiStateManager.IsEditMode ? 600 : 0);
-            scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
+            Height = entries.Count * 80 + mailTargetUI.Height + friendshipTargetUI.Height + 300;
+
 
             Vector2 titleDisplayPosition = new Vector2(scheduleBox.X + 10, scheduleBox.Y);
             // 🔹 스케줄 키 표시
@@ -112,11 +112,12 @@ namespace NPCSchedulers.UI
                     scheduleEditUI.position = new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80);
                     scheduleEditUI?.Draw(b);
                     yOffset += 600;
-
+                    Height += 600;
                 }
 
                 yOffset += 100; // 🔹 각 스케줄 간격 유지
             }
+            scheduleBox = new Rectangle((int)position.X, (int)position.Y, 600, Height);
             return false;
         }
         public override void LeftHeld(int x, int y)
@@ -182,7 +183,7 @@ namespace NPCSchedulers.UI
                 {
                     uiStateManager.SetScheduleKey(scheduleKey);
                     uiStateManager.ToggleEditMode(entry.Key);
-                    if (SchedulePage.IsOpen && uiStateManager.IsEditMode && uiStateManager.EditedScheduleKey == entry.Key)
+                    if (uiStateManager.IsEditMode && uiStateManager.EditedScheduleKey == entry.Key)
                     {
                         scheduleEditUI = new ScheduleEditUI(new Vector2(entry.Bounds.bounds.X, entry.Bounds.bounds.Y + 80), entry.Key, entry, uiStateManager);
                         yOffset += 600;
@@ -281,8 +282,9 @@ namespace NPCSchedulers.UI
             foreach (var scheduleUI in scheduleEntries)
             {
                 base.Draw(b);
-                UpdateSchedules();
+
                 scheduleUI?.Draw(b);
+                UpdateSchedules();
                 base.DrawEnd(b);
                 if (uiStateManager.IsEditMode) ScheduleEditUI.DrawTooltip(b, ScheduleUI.scheduleEditUI);
             }

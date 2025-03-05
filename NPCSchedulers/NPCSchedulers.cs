@@ -6,10 +6,8 @@ using HarmonyLib;
 using Microsoft.Xna.Framework.Graphics;
 using System.Reflection;
 using NPCSchedulers.UI;
-using NPCSchedulers.DATA;
-using Microsoft.Xna.Framework.Input;
-using StardewModdingAPI.Utilities;
 using Microsoft.Xna.Framework;
+using NPCSchedulers.API;
 
 namespace NPCSchedulers
 {
@@ -80,7 +78,10 @@ namespace NPCSchedulers
             RegisterEvents();
             PatchMethods();
         }
-
+        public override object GetApi()
+        {
+            return new INPCSchedulers();
+        }
         private void RegisterEvents()
         {
             Helper.Events.Display.RenderedActiveMenu += OnRenderedActiveMenu;
@@ -167,10 +168,10 @@ namespace NPCSchedulers
             if (npcAtCursor == null) npcAtCursor = gameLocation.isCharacterAtTile(new Vector2(Game1.currentCursorTile.X, Game1.currentCursorTile.Y + 1));
             if (e.Button == Config.Key && npcAtCursor != null)
             {
-
                 // 새 프로필 및 스케줄 편집 메뉴 열기
                 var allSocialEntries = new List<SocialPage.SocialEntry>(); // You need to populate this list as required
                 Game1.activeClickableMenu = new ProfileMenu(new SocialPage.SocialEntry(npcAtCursor, Game1.player.friendshipData[npcAtCursor.Name], npcAtCursor.GetData()), allSocialEntries);
+                schedulePage = new SchedulePage(npcAtCursor.Name);
                 schedulePage.ToggleSchedulePage((ProfileMenu)Game1.activeClickableMenu);
             }
 
@@ -178,7 +179,7 @@ namespace NPCSchedulers
 
             if (SchedulePage.IsOpen)
             {
-                if (e.Button == SButton.Escape || e.Button == SButton.E)
+                if (!isProfileMenuOpen)
                 {
                     SchedulePage.Close();
                 }
@@ -223,7 +224,7 @@ namespace NPCSchedulers
         }
         private void OnMenuChanged(object sender, MenuChangedEventArgs e)
         {
-            if (e.NewMenu == null)
+            if (e.OldMenu is ProfileMenu)
                 RegisterConfig();
         }
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)

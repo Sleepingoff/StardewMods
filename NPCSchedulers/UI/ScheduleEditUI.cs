@@ -41,12 +41,13 @@ namespace NPCSchedulers.UI
             this.position = position;
             this.scheduleKey = scheduleKey;
             this.entry = entry;
+
             InitializeOptions(entry);
             GenerateScheduleOptions(ModEntry.Instance.Helper.Translation);
         }
 
 
-        public static void InitializeOptions(ScheduleEntry entry)
+        public void InitializeOptions(ScheduleEntry entry)
         {
             optionsByLetter.Clear();
             // 🔥 모든 장소 불러오기
@@ -55,6 +56,7 @@ namespace NPCSchedulers.UI
 
             foreach (var option in locationOptions)
             {
+                if (string.IsNullOrEmpty(option)) continue;
                 char firstChar = char.ToUpper(option[0]);
                 if (!char.IsLetter(firstChar)) firstChar = '_'; // 숫자 및 특수문자 그룹
 
@@ -65,8 +67,11 @@ namespace NPCSchedulers.UI
             }
 
             availableLetters = optionsByLetter.Keys.OrderBy(c => c).ToList();
-            char currentChar = char.ToUpper(entry.Location[0]);
-            currentLetter = currentChar;
+            if (!string.IsNullOrWhiteSpace(entry.Location))
+            {
+                char currentChar = char.ToUpper(entry.Location[0]);
+                currentLetter = currentChar;
+            }
 
             directionOptions = new() { "back", "right", "front", "left" };
             // 🔥 모든 NPC별 액션 불러오기
@@ -84,20 +89,8 @@ namespace NPCSchedulers.UI
                 {
                     actionOptions[npc.Name].Add("None");
                 }
-
-                if (npc.Schedule != null)
-                {
-                    foreach (var value in npc.Schedule.Values)
-                    {
-                        string action = value.endOfRouteBehavior;
-
-                        // 🔥 중복 방지 후 추가
-                        if (!actionOptions[npc.Name].Contains(action ?? "None"))
-                        {
-                            actionOptions[npc.Name].Add(action);
-                        }
-                    }
-                }
+                var originalActionList = uiStateManager.GetActionList();
+                actionOptions[npc.Name].AddRange(originalActionList);
             }
         }
         private void ChangeLetter(int direction)
@@ -121,9 +114,9 @@ namespace NPCSchedulers.UI
             if (optionsByLetter.ContainsKey(currentLetter))
             {
                 var currentOptions = optionsByLetter[currentLetter];
-
-                int selectedIndex = (int)((locationSlider.value / 99.0) * (currentOptions.Count - 1));
-                selectedIndex = Math.Clamp(selectedIndex, 0, currentOptions.Count - 1);
+                //? 결과 확인하기
+                int selectedIndex = (int)((locationSlider.value / 99.0) * (currentOptions.Count - 1)) + 1;
+                selectedIndex = Math.Clamp(selectedIndex, 1, currentOptions.Count) - 1;
 
                 selectedOption = currentOptions[selectedIndex];
             }
@@ -143,7 +136,8 @@ namespace NPCSchedulers.UI
             //locationOptions
             locationSlider = new OptionsSlider("", 0, offsetX, 0);
             locationSlider.bounds.Width = 250;
-            locationSlider.value = Math.Clamp((int)(optionsByLetter[currentLetter].IndexOf(entry.Location) / (float)optionsByLetter[currentLetter].Count * 99), 0, optionsByLetter[currentLetter].Count - 1);
+            locationSlider.value = Math.Clamp((int)(optionsByLetter[currentLetter].IndexOf(entry.Location) / (float)(optionsByLetter[currentLetter].Count) * 99) + 1, 0, 99);
+
 
             nextButton = new ClickableComponent(new Rectangle(offsetX + 250 + 100, offsetY, 16, 32), ">");
             prevButton = new ClickableComponent(new Rectangle(offsetX + 250, offsetY, 16, 32), "<");
@@ -160,9 +154,9 @@ namespace NPCSchedulers.UI
             actionSlider = new OptionsSlider("", 0, offsetX, 0);
             actionSlider.bounds.Width = 400;
             //v0.0.3 + fix: actionOptions[currentNPC] 범위 초과 오류 수정
-            actionSlider.value = Math.Clamp((int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99), 0, actionOptions[currentNPC].Count - 1);
+            actionSlider.value = Math.Clamp((int)(actionOptions[currentNPC].IndexOf(entry.Action) / (float)actionOptions[currentNPC].Count * 99) + 1, 0, 99);
             offsetY += 50;
-            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk").Default("Talk"), entry.Talk ?? "");
+            talkTextBox = new OptionsTextBox(i18n.Get("ScheduleUI.Talk").Default("Talk"), entry.Talk ?? "", 400);
             offsetY += 50;
             // 🔹 저장 및 취소 버튼
             // 🔹 저장 및 취소 버튼 (텍스트 버튼)
@@ -237,8 +231,9 @@ namespace NPCSchedulers.UI
 
 
             // b.DrawString(Game1.smallFont, "Talk:", new Vector2(offsetX, offsetY - 15), Color.Black);
-            talkTextBox.bounds = new Rectangle(offsetX, offsetY, 400, talkTextBox.bounds.Height);
+            talkTextBox.bounds = new Rectangle(offsetX, offsetY, 400, 200);
             talkTextBox.textBox.Width = 400;
+            // talkTextBox.textBox.Height = 200;
             talkTextBox.draw(b, offsetX, offsetY);
             offsetY += 50;
             // 🔹 저장 및 취소 버튼 유지

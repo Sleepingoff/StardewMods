@@ -5,6 +5,7 @@ using NPCSchedulers.DATA;
 using NPCSchedulers.Store;
 using NPCSchedulers.Type;
 using StardewValley;
+using StardewValley.Locations;
 using StardewValley.Network;
 using StardewValley.Pathfinding;
 
@@ -15,6 +16,7 @@ namespace NPCSchedulers
         private static OriginalScheduleData originalSchedule = new OriginalScheduleData();
         private static UserScheduleData userSchedule = new UserScheduleData();
 
+        private static Dictionary<string, List<string>> animationList = new();
         /// <summary>
         /// 모든 스케줄 데이터를 로드 (유저 데이터 + 원본 데이터)
         /// </summary>
@@ -76,6 +78,38 @@ namespace NPCSchedulers
             }
 
             return editedKeys;
+        }
+
+        /// <summary>
+        /// npc의 스케줄 중에 action에 해당하는 부분 가져오기
+        /// </summary>
+
+        public static List<string> GetActionList(string npcName)
+        {
+            if (animationList.ContainsKey(npcName))
+                animationList[npcName] = new();
+            else animationList.Add(npcName, new());
+            Dictionary<string, OriginalScheduleDataType> originalData = new OriginalScheduleData().LoadOriginalSchedules();
+            if (originalData.ContainsKey(npcName) && originalData[npcName].RawData != null)
+            {
+                Dictionary<string, string> rawSchedules = originalData[npcName].RawData;
+                foreach (var rawSchedule in rawSchedules)
+                {
+                    var parsedSchedules = ParseScheduleEntries(npcName, rawSchedule.Key, rawSchedule.Value);
+                    var (_, parsedSchedule, _, _) = parsedSchedules;
+
+                    foreach (var schedule in parsedSchedule)
+                    {
+                        if (schedule.Action != null && !animationList[npcName].Contains(schedule.Action) && schedule.Action != "bed")
+                        {
+                            animationList[npcName].Add(schedule.Action);
+                        }
+                    }
+
+                }
+
+            }
+            return animationList[npcName];
         }
 
         /// <summary>
@@ -677,7 +711,13 @@ namespace NPCSchedulers
                     prevTile.Y = entry.Y;
 
                     newScheduleList.Add(entry.Time, pathDescription);
+
+                    if (entry.Location.Contains("IslandSouth"))
+                    {
+                        npc.islandScheduleName.Value = key;
+                    }
                 }
+
                 // ✅ 스케줄 적용 여부 확인 기존 스케줄이 적용되어버림
                 bool loaded = npc.TryLoadSchedule(key, newScheduleList);
                 if (loaded) Game1.addHUDMessage(new HUDMessage($"Applied {npcName}'s schedule with {key}", 1));

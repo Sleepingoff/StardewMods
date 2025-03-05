@@ -45,6 +45,7 @@ namespace NPCSchedulers.Store
             }
             int currentIndex = seasons.IndexOf(selectedSeason);
             int nextIndex = (currentIndex + direction) % seasons.Count;
+
             if (nextIndex < 0) nextIndex += seasons.Count;
 
             SaveData((seasons[nextIndex], date));
