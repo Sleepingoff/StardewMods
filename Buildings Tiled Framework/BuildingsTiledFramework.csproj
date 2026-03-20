@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>BuildingsTiledFramework</AssemblyName>
+    <RootNamespace>BuildingsTiledFramework</RootNamespace>
+    <OutputPath>/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework</OutputPath>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <EnableGameDebugging>true</EnableGameDebugging>
+    <EnableModDeploy>false</EnableModDeploy>
+    <EnableModZip>false</EnableModZip>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="ModEntry.cs" />
+    <Compile Include="ModConfig.cs" />
+    <Compile Include="GMCM.cs" />
+    <Compile Include="Runtime/RuntimeDefinitions.cs" />
+    <Compile Include="Runtime/RuntimeBuildingRegistry.cs" />
+    <Compile Include="Tiled/ITiledObject.cs" />
+    <Compile Include="Tiled/TiledLoader.cs" />
+    <Compile Include="Patches/BuildingPatches.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="manifest.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="StardewValley">
+      <HintPath>/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Stardew Valley.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="StardewModdingAPI">
+      <HintPath>/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/StardewModdingAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="StardewValley.GameData">
+      <HintPath>/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/StardewValley.GameData.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.3.2" />
+    <PackageReference Include="Lib.Harmony" Version="2.2.2" />
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.0.1641" />
+  </ItemGroup>
+</Project>
