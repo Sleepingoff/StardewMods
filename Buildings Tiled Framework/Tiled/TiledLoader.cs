@@ -5,6 +5,7 @@ using StardewValley;
 using BuildingsTiledFramework.Runtime;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Xml.Linq;
 
 namespace BuildingsTiledFramework.Tiled;
@@ -47,6 +48,11 @@ public sealed class TiledLoader
             Size = new Point(width, height),
             Door = new Vector2(doorX, doorY),
             HasExplicitDoor = tiledObject.Has("doorX") || tiledObject.Has("doorY"),
+            AllowsFlooringUnderneath = TryParseBool(tiledObject.Get("AllowsFlooringUnderneath")),
+            DrawShadow = TryParseBool(tiledObject.Get("DrawShadow")) ?? false,
+            BuildCost = TryParseInt(tiledObject.Get("BuildCost")),
+            BuildDays = TryParseInt(tiledObject.Get("BuildDays")),
+            Builder = NormalizeBuilder(tiledObject.Get("Builder")),
         };
 
         if (tiledObject.Has("sourceX") && tiledObject.Has("sourceY") && tiledObject.Has("sourceWidth") && tiledObject.Has("sourceHeight"))
@@ -68,6 +74,20 @@ public sealed class TiledLoader
                     action));
             }
         }
+
+        if (tiledObject.Has("TouchAction"))
+        {
+            var touchAction = tiledObject.Get("TouchAction");
+            if (!string.IsNullOrWhiteSpace(touchAction))
+            {
+                definition.Actions.Add(new RuntimeAction(
+                    new Rectangle(tiledObject.TileX, tiledObject.TileY, Math.Max(1, tiledObject.TileWidth), Math.Max(1, tiledObject.TileHeight)),
+                    touchAction,
+                    triggerOnTouch: true));
+            }
+        }
+
+        this.PopulateBuildMaterials(definition, tiledObject.Get("BuildMaterials"), "<inline object>");
 
         return definition;
     }
@@ -134,6 +154,11 @@ public sealed class TiledLoader
             Inherits = properties.TryGetValue("inherits", out var inherits) && !string.IsNullOrWhiteSpace(inherits)
                 ? this.NormalizeBuildingId(inherits)
                 : null,
+            AllowsFlooringUnderneath = this.GetNullableBoolProperty(properties, "AllowsFlooringUnderneath"),
+            DrawShadow = this.GetNullableBoolProperty(properties, "DrawShadow") ?? false,
+            BuildCost = this.GetNullableIntProperty(properties, "BuildCost"),
+            BuildDays = this.GetNullableIntProperty(properties, "BuildDays"),
+            Builder = NormalizeBuilder(this.GetStringProperty(properties, "Builder")),
         };
 
         foreach (var pair in drawTextures)
@@ -156,6 +181,8 @@ public sealed class TiledLoader
             definition.MaxOccupants = maxOccupants;
         }
 
+        this.PopulateBuildMaterials(definition, this.GetStringProperty(properties, "BuildMaterials"), tiledFilePath);
+
         this.ReadObjectLayerData(mapElement, tileWidth, tileHeight, definition, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
 
         var rawCollisionTiles = this.ReadCollisionTiles(mapElement, mapWidth);
@@ -164,7 +191,7 @@ public sealed class TiledLoader
 
         this.NormalizeToFootprint(definition);
 
-        var defaultDoor = definition.Actions.FirstOrDefault();
+        var defaultDoor = definition.Actions.FirstOrDefault(action => !action.TriggerOnTouch);
         var defaultDoorX = definition.HasExplicitDoor || HasDoorProperty(properties)
             ? (int)definition.Door.X
             : defaultDoor?.Area.X ?? 0;
@@ -237,11 +264,89 @@ public sealed class TiledLoader
         var tmxDirectory = Path.GetDirectoryName(tiledFilePath)
             ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' does not have a valid directory.");
         var fullImagePath = Path.GetFullPath(Path.Combine(tmxDirectory, imageSource));
-        var relativePath = Path.GetRelativePath(contentPack.DirectoryPath, fullImagePath);
-        if (relativePath.StartsWith("..", StringComparison.Ordinal))
+        var contentPackDirectory = Path.GetFullPath(contentPack.DirectoryPath);
+        var normalizedContentPackDirectory = NormalizePathForComparison(contentPackDirectory);
+        var normalizedFullImagePath = NormalizePathForComparison(fullImagePath);
+
+        var isInsideContentPack =
+            string.Equals(normalizedFullImagePath, normalizedContentPackDirectory, StringComparison.Ordinal)
+            || normalizedFullImagePath.StartsWith(normalizedContentPackDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+        if (!isInsideContentPack)
             throw new InvalidOperationException($"Tileset image '{imageSource}' points outside the content pack.");
 
+        var relativePath = Path.GetRelativePath(contentPackDirectory, fullImagePath);
+
+        var gameAssetCandidates = this.GetGameAssetNamesFromTilesetSource(imageSource);
+        foreach (var gameAssetName in gameAssetCandidates)
+        {
+            var parsedAssetName = this.helper.GameContent.ParseAssetName(gameAssetName);
+            if (!this.helper.GameContent.DoesAssetExist<Texture2D>(parsedAssetName))
+                continue;
+
+            try
+            {
+                var texture = Game1.content.Load<Texture2D>(gameAssetName);
+                return texture;
+            }
+            catch (Exception ex)
+            {
+                this.monitor.Log(
+                    $"Tileset image source '{imageSource}' in '{tiledFilePath}' requested game asset '{gameAssetName}', but it could not be loaded. Falling back to content pack path '{relativePath}'. Error: {ex.Message}",
+                    LogLevel.Warn);
+            }
+        }
+
         return contentPack.ModContent.Load<Texture2D>(relativePath);
+    }
+
+    private static string NormalizePathForComparison(string path)
+    {
+        var fullPath = Path.GetFullPath(path)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return fullPath.Normalize(NormalizationForm.FormC);
+    }
+
+    private List<string> GetGameAssetNamesFromTilesetSource(string imageSource)
+    {
+        var fileName = Path.GetFileName(imageSource);
+        if (string.IsNullOrWhiteSpace(fileName) || !fileName.StartsWith(".", StringComparison.Ordinal))
+            return new List<string>();
+
+        var assetFileName = fileName[1..];
+        if (string.IsNullOrWhiteSpace(assetFileName))
+            return new List<string>();
+
+        var assetBaseName = Path.GetFileNameWithoutExtension(assetFileName);
+        if (string.IsNullOrWhiteSpace(assetBaseName))
+            return new List<string>();
+
+        var candidates = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddCandidate(string? candidate)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+                return;
+
+            var normalized = candidate.Replace('\\', '/').Trim().Trim('/');
+            if (string.IsNullOrWhiteSpace(normalized))
+                return;
+
+            if (seen.Add(normalized))
+                candidates.Add(normalized);
+        }
+
+        var sourceDirectory = Path.GetDirectoryName(imageSource)?.Replace('\\', '/').Trim();
+        if (!string.IsNullOrWhiteSpace(sourceDirectory) && sourceDirectory != ".")
+            AddCandidate($"{sourceDirectory.Trim('/')}/{assetBaseName}");
+
+        AddCandidate($"Maps/{assetBaseName}");
+        AddCandidate($"Buildings/{assetBaseName}");
+        AddCandidate($"LooseSprites/{assetBaseName}");
+        AddCandidate($"TileSheets/{assetBaseName}");
+        AddCandidate(assetBaseName);
+
+        return candidates;
     }
 
     private Dictionary<string, Texture2D> ComposeDrawTextures(
@@ -389,6 +494,7 @@ public sealed class TiledLoader
                     Math.Max(1, (int)Math.Ceiling(height / tileHeight)));
                 properties.TryGetValue("Role", out var role);
                 properties.TryGetValue("Action", out var action);
+                properties.TryGetValue("TouchAction", out var touchAction);
 
                 this.ApplyObjectRole(
                     definition,
@@ -428,6 +534,16 @@ public sealed class TiledLoader
                         definition.Mailbox ??= new Point(tileRectangle.X, tileRectangle.Y);
 
                     definition.Actions.Add(new RuntimeAction(tileRectangle, runtimeAction));
+                }
+
+                if (!string.IsNullOrWhiteSpace(touchAction))
+                {
+                    var objectGroupName = objectGroup.Attribute("name")?.Value ?? "<unnamed>";
+                    var objectId = objectElement.Attribute("id")?.Value ?? "<none>";
+                    definition.Actions.Add(new RuntimeAction(tileRectangle, touchAction, triggerOnTouch: true));
+                    this.monitor.Log(
+                        $"[TouchAction] Parsed TMX TouchAction for '{definition.Id}': area={FormatRectangle(tileRectangle)}, action='{touchAction}', objectGroup='{objectGroupName}', objectId='{objectId}'.",
+                        LogLevel.Debug);
                 }
             }
         }
@@ -664,7 +780,7 @@ public sealed class TiledLoader
         foreach (var layer in mapElement.Elements("layer"))
         {
             var resolvedDrawLayer = this.ResolveDrawLayer(layer);
-            if (!string.Equals(resolvedDrawLayer, "Back", StringComparison.OrdinalIgnoreCase)
+            if (!string.Equals(resolvedDrawLayer, RuntimeBuildingDefinition.BackDrawLayer, StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(resolvedDrawLayer, RuntimeBuildingDefinition.BuildingsDrawLayer, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -717,7 +833,15 @@ public sealed class TiledLoader
             var action = definition.Actions[i];
             definition.Actions[i] = new RuntimeAction(
                 new Rectangle(action.Area.X - origin.X, action.Area.Y - origin.Y, action.Area.Width, action.Area.Height),
-                action.Action);
+                action.Action,
+                action.TriggerOnTouch);
+
+            if (action.TriggerOnTouch)
+            {
+                this.monitor.Log(
+                    $"[TouchAction] Normalized TouchAction for '{definition.Id}': {FormatRectangle(action.Area)} -> {FormatRectangle(definition.Actions[i].Area)}, action='{action.Action}', origin=({origin.X}, {origin.Y}).",
+                    LogLevel.Debug);
+            }
         }
 
         var normalizedCollisionTiles = definition.CollisionTiles
@@ -754,7 +878,8 @@ public sealed class TiledLoader
     private string ResolveDrawLayer(XElement layerElement)
     {
         var layerName = layerElement.Attribute("name")?.Value?.Trim();
-        if (string.Equals(layerName, RuntimeBuildingDefinition.BuildingsDrawLayer, StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(layerName, RuntimeBuildingDefinition.BackDrawLayer, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(layerName, RuntimeBuildingDefinition.BuildingsDrawLayer, StringComparison.OrdinalIgnoreCase)
             || string.Equals(layerName, RuntimeBuildingDefinition.FrontDrawLayer, StringComparison.OrdinalIgnoreCase)
             || string.Equals(layerName, RuntimeBuildingDefinition.AlwaysFrontDrawLayer, StringComparison.OrdinalIgnoreCase))
         {
@@ -787,6 +912,96 @@ public sealed class TiledLoader
         return properties.TryGetValue(key, out var rawValue) && bool.TryParse(rawValue, out var value)
             ? value
             : defaultValue;
+    }
+
+    private bool? GetNullableBoolProperty(IReadOnlyDictionary<string, string> properties, string key)
+    {
+        return properties.TryGetValue(key, out var rawValue)
+            ? TryParseBool(rawValue)
+            : null;
+    }
+
+    private int? GetNullableIntProperty(IReadOnlyDictionary<string, string> properties, string key)
+    {
+        return properties.TryGetValue(key, out var rawValue)
+            ? TryParseInt(rawValue)
+            : null;
+    }
+
+    private string? GetStringProperty(IReadOnlyDictionary<string, string> properties, string key)
+    {
+        return properties.TryGetValue(key, out var rawValue)
+            ? rawValue
+            : null;
+    }
+
+    private static bool? TryParseBool(string? rawValue)
+    {
+        return bool.TryParse(rawValue, out var value)
+            ? value
+            : null;
+    }
+
+    private static int? TryParseInt(string? rawValue)
+    {
+        return int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static string FormatRectangle(Rectangle rectangle)
+    {
+        return $"({rectangle.X}, {rectangle.Y}, {rectangle.Width}, {rectangle.Height})";
+    }
+
+    private static string? NormalizeBuilder(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return null;
+
+        var trimmed = rawValue.Trim();
+        if (string.Equals(trimmed, "null", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (string.Equals(trimmed, "Robin", StringComparison.OrdinalIgnoreCase))
+            return "Robin";
+        if (string.Equals(trimmed, "Wizard", StringComparison.OrdinalIgnoreCase))
+            return "Wizard";
+
+        return trimmed;
+    }
+
+    private void PopulateBuildMaterials(RuntimeBuildingDefinition definition, string? rawValue, string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return;
+
+        var tokens = rawValue.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length % 2 != 0)
+        {
+            this.monitor.Log(
+                $"BuildMaterials in '{sourceName}' must contain itemId/amount pairs. Raw value: '{rawValue}'.",
+                LogLevel.Warn);
+            return;
+        }
+
+        for (var i = 0; i < tokens.Length; i += 2)
+        {
+            var itemId = tokens[i];
+            var amountRaw = tokens[i + 1];
+            if (!int.TryParse(amountRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var amount))
+            {
+                this.monitor.Log(
+                    $"BuildMaterials in '{sourceName}' has invalid amount '{amountRaw}' for item '{itemId}'.",
+                    LogLevel.Warn);
+                continue;
+            }
+
+            definition.BuildMaterials.Add(new RuntimeBuildMaterial
+            {
+                ItemId = itemId,
+                Amount = amount,
+            });
+        }
     }
 
     private int GetRequiredIntAttribute(XElement element, string attributeName)

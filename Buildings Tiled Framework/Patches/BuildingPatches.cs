@@ -9,7 +9,6 @@ using StardewValley.Menus;
 using BuildingsTiledFramework.Runtime;
 using System.Reflection;
 using System.Collections;
-using System.Text.Json;
 using XTileLocation = xTile.Dimensions.Location;
 
 namespace BuildingsTiledFramework.Patches;
@@ -19,6 +18,8 @@ internal static class BuildingPatches
 {
     private static RuntimeBuildingRegistry registry = null!;
     private static IMonitor monitor = null!;
+    private static string? lastTriggeredTouchActionKey;
+    private const string TouchActionLogPrefix = "[TouchAction]";
 
     public static void Initialize(RuntimeBuildingRegistry runtimeRegistry, IMonitor modMonitor)
     {
@@ -57,6 +58,9 @@ internal static class BuildingPatches
 
         foreach (var runtimeAction in definition.Actions)
         {
+            if (runtimeAction.TriggerOnTouch)
+                continue;
+
             if (!runtimeAction.Area.Contains(localTile))
                 continue;
 
@@ -78,11 +82,18 @@ internal static class BuildingPatches
         if (definition is null)
             return true;
 
+        var backTexture = definition.GetDrawTexture(RuntimeBuildingDefinition.BackDrawLayer);
+        if (backTexture is not null)
+            DrawLayerTexture(b, __instance, definition, backTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BackDrawLayer));
+
         var buildingsTexture = definition.GetDrawTexture(RuntimeBuildingDefinition.BuildingsDrawLayer);
         if (buildingsTexture is null)
             return true;
 
-        DrawShadowTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
+        if (definition.DrawShadow)
+        {
+            DrawShadowTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
+        }
         DrawLayerTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
 
         var frontTexture = definition.GetDrawTexture(RuntimeBuildingDefinition.FrontDrawLayer);
@@ -144,10 +155,129 @@ internal static class BuildingPatches
         var baseDepth = Math.Max(0f, ((building.tileY.Value + definition.Size.Y) * Game1.tileSize - 24f) / 10000f);
         return drawLayer switch
         {
+            RuntimeBuildingDefinition.BackDrawLayer => 0.0000001f,
             RuntimeBuildingDefinition.FrontDrawLayer => Math.Min(0.9998f, baseDepth + 0.0001f),
             RuntimeBuildingDefinition.AlwaysFrontDrawLayer => Math.Min(0.9999f, baseDepth + 0.0002f),
             _ => baseDepth,
         };
+    }
+
+    [HarmonyPatch(typeof(GameLocation), nameof(GameLocation.UpdateWhenCurrentLocation))]
+    [HarmonyPostfix]
+    private static void UpdateWhenCurrentLocationPostfix(GameLocation __instance)
+    {
+        try
+        {
+            monitor.Log(
+                $"{TouchActionLogPrefix} UpdateWhenCurrentLocation on '{__instance.NameOrUniqueName}' ({__instance.GetType().FullName}).",
+                LogLevel.Debug);
+            var buildings = GetLocationBuildings(__instance);
+            monitor.Log(
+                $"{TouchActionLogPrefix} Location '{__instance.NameOrUniqueName}' exposed {buildings.Count} building(s) for touch evaluation.",
+                LogLevel.Debug);
+            if (buildings.Count == 0)
+            {
+                lastTriggeredTouchActionKey = null;
+                return;
+            }
+
+            var playerTile = Game1.player.TilePoint;
+            foreach (var building in buildings)
+            {
+                var definition = registry.Get(building);
+                if (definition is null)
+                {
+                    monitor.Log(
+                        $"{TouchActionLogPrefix} Skipped building '{building.buildingType?.Value}' at ({building.tileX.Value}, {building.tileY.Value}) because no runtime definition is bound.",
+                        LogLevel.Debug);
+                    continue;
+                }
+
+                var touchActions = definition.Actions.Where(action => action.TriggerOnTouch).ToList();
+                if (touchActions.Count == 0)
+                {
+                    monitor.Log(
+                        $"{TouchActionLogPrefix} Runtime building '{definition.Id}' at ({building.tileX.Value}, {building.tileY.Value}) has no TouchAction entries after normalization.",
+                        LogLevel.Debug);
+                    continue;
+                }
+
+                var localTile = new Point(
+                    playerTile.X - building.tileX.Value,
+                    playerTile.Y - building.tileY.Value);
+                monitor.Log(
+                    $"{TouchActionLogPrefix} Evaluating building '{definition.Id}' at ({building.tileX.Value}, {building.tileY.Value}) in '{__instance.NameOrUniqueName}': playerTile=({playerTile.X}, {playerTile.Y}), localTile=({localTile.X}, {localTile.Y}), touchActions={touchActions.Count}.",
+                    LogLevel.Debug);
+
+                foreach (var runtimeAction in touchActions)
+                {
+                    var containsPlayer = runtimeAction.Area.Contains(localTile);
+                    monitor.Log(
+                        $"{TouchActionLogPrefix} Checked area {FormatRectangle(runtimeAction.Area)} for '{definition.Id}': action='{runtimeAction.Action}', containsPlayer={containsPlayer}.",
+                        LogLevel.Debug);
+                    if (!containsPlayer)
+                        continue;
+
+                    var actionKey = $"{__instance.NameOrUniqueName}:{building.tileX.Value}:{building.tileY.Value}:{runtimeAction.Action}:{playerTile.X}:{playerTile.Y}";
+                    if (string.Equals(lastTriggeredTouchActionKey, actionKey, StringComparison.Ordinal))
+                    {
+                        monitor.Log(
+                            $"{TouchActionLogPrefix} Skipped duplicate trigger for '{definition.Id}': action='{runtimeAction.Action}', actionKey='{actionKey}'.",
+                            LogLevel.Debug);
+                        return;
+                    }
+
+                    monitor.Log(
+                        $"{TouchActionLogPrefix} Player entered TouchAction area for '{definition.Id}': action='{runtimeAction.Action}', worldTile=({playerTile.X}, {playerTile.Y}), localArea={FormatRectangle(runtimeAction.Area)}.",
+                        LogLevel.Debug);
+                    if (TryPerformTouchAction(__instance, runtimeAction.Action, playerTile))
+                    {
+                        lastTriggeredTouchActionKey = actionKey;
+                        monitor.Log(
+                            $"{TouchActionLogPrefix} Trigger succeeded for '{definition.Id}': action='{runtimeAction.Action}', actionKey='{actionKey}'.",
+                            LogLevel.Debug);
+                    }
+                    else
+                    {
+                        monitor.Log(
+                            $"{TouchActionLogPrefix} Trigger failed for '{definition.Id}': action='{runtimeAction.Action}', worldTile=({playerTile.X}, {playerTile.Y}).",
+                            LogLevel.Debug);
+                    }
+
+                    return;
+                }
+            }
+
+            lastTriggeredTouchActionKey = null;
+        }
+        catch (Exception ex)
+        {
+            monitor.Log($"Failed to process runtime building touch actions for location '{__instance.NameOrUniqueName}': {ex}", LogLevel.Error);
+        }
+    }
+
+    private static List<Building> GetLocationBuildings(GameLocation location)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var property = location.GetType().GetProperty("buildings", flags) ?? location.GetType().GetProperty("Buildings", flags);
+        var field = property is null ? location.GetType().GetField("buildings", flags) ?? location.GetType().GetField("Buildings", flags) : null;
+        var value = property?.GetValue(location) ?? field?.GetValue(location);
+        if (value is not IEnumerable enumerable)
+        {
+            monitor.Log(
+                $"{TouchActionLogPrefix} Location '{location.NameOrUniqueName}' ({location.GetType().FullName}) does not expose an enumerable buildings collection.",
+                LogLevel.Debug);
+            return new List<Building>();
+        }
+
+        var buildings = new List<Building>();
+        foreach (var item in enumerable)
+        {
+            if (item is Building building)
+                buildings.Add(building);
+        }
+
+        return buildings;
     }
 
     private static void ApplyBlueprintState(CarpenterMenu menu, RuntimeBuildingDefinition definition)
@@ -159,6 +289,10 @@ internal static class BuildingPatches
         TrySetIntMember(blueprint, "tilesWide", definition.Size.X);
         TrySetIntMember(blueprint, "tilesHigh", definition.Size.Y);
         TrySetPointLikeMember(blueprint, "humanDoor", new Point((int)definition.Door.X, (int)definition.Door.Y));
+        SetMemberValueIfPresent(blueprint, "textureName", ModEntry.Instance.GetPreviewTextureAssetName(definition.Id));
+        SetMemberValueIfPresent(blueprint, "Texture", ModEntry.Instance.GetPreviewTextureAssetName(definition.Id));
+        TrySetAreaLikeMember(blueprint, "sourceRect", definition.SourceRect ?? definition.Texture.Bounds);
+        TrySetAreaLikeMember(blueprint, "SourceRect", definition.SourceRect ?? definition.Texture.Bounds);
         if (definition.AnimalDoor is Rectangle animalDoor)
             TrySetAreaLikeMember(blueprint, "animalDoor", animalDoor);
     }
@@ -221,6 +355,120 @@ internal static class BuildingPatches
             return true;
 
         return false;
+    }
+
+    private static bool TryPerformTouchAction(GameLocation location, string action, Point playerTile)
+    {
+        if (string.IsNullOrWhiteSpace(action))
+            return false;
+
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var methods = typeof(GameLocation).GetMethods(flags)
+            .Where(method => string.Equals(method.Name, "performTouchAction", StringComparison.Ordinal))
+            .ToArray();
+        if (methods.Length == 0)
+        {
+            monitor.Log("Could not find GameLocation.performTouchAction while processing a runtime building TouchAction.", LogLevel.Warn);
+            return false;
+        }
+
+        var splitAction = action.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var tileVector = new Vector2(playerTile.X, playerTile.Y);
+        var tileLocation = new XTileLocation(playerTile.X, playerTile.Y);
+        monitor.Log(
+            $"{TouchActionLogPrefix} Resolving GameLocation.performTouchAction for action='{action}' at worldTile=({playerTile.X}, {playerTile.Y}). OverloadCount={methods.Length}.",
+            LogLevel.Debug);
+
+        foreach (var method in methods)
+        {
+            if (!TryBuildTouchActionArguments(method, action, splitAction, tileVector, tileLocation, out var args))
+                continue;
+
+            try
+            {
+                monitor.Log(
+                    $"{TouchActionLogPrefix} Invoking overload '{FormatMethodSignature(method)}' for action='{action}'.",
+                    LogLevel.Debug);
+                method.Invoke(location, args);
+                monitor.Log(
+                    $"{TouchActionLogPrefix} GameLocation.performTouchAction completed for action='{action}' using '{FormatMethodSignature(method)}'.",
+                    LogLevel.Debug);
+                return true;
+            }
+            catch (TargetInvocationException ex)
+            {
+                monitor.Log($"Runtime building TouchAction '{action}' threw while invoking GameLocation.performTouchAction: {ex.InnerException ?? ex}", LogLevel.Warn);
+                return false;
+            }
+        }
+
+        monitor.Log($"Could not match a GameLocation.performTouchAction overload for runtime building TouchAction '{action}'.", LogLevel.Warn);
+        return false;
+    }
+
+    private static bool TryBuildTouchActionArguments(
+        MethodInfo method,
+        string action,
+        string[] splitAction,
+        Vector2 tileVector,
+        XTileLocation tileLocation,
+        out object?[] args)
+    {
+        var parameters = method.GetParameters();
+        args = new object?[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var parameterType = parameters[i].ParameterType;
+            if (parameterType == typeof(string))
+            {
+                args[i] = action;
+                continue;
+            }
+
+            if (parameterType == typeof(string[]))
+            {
+                args[i] = splitAction;
+                continue;
+            }
+
+            if (parameterType == typeof(Vector2))
+            {
+                args[i] = tileVector;
+                continue;
+            }
+
+            if (parameterType == typeof(XTileLocation))
+            {
+                args[i] = tileLocation;
+                continue;
+            }
+
+            if (parameterType == typeof(Farmer))
+            {
+                args[i] = Game1.player;
+                continue;
+            }
+
+            monitor.Log(
+                $"{TouchActionLogPrefix} Rejected overload '{FormatMethodSignature(method)}' for action='{action}' because parameter {i} type '{parameterType.FullName}' is unsupported.",
+                LogLevel.Debug);
+            return false;
+        }
+
+        monitor.Log(
+            $"{TouchActionLogPrefix} Matched overload '{FormatMethodSignature(method)}' for action='{action}'.",
+            LogLevel.Debug);
+        return true;
+    }
+
+    private static string FormatRectangle(Rectangle rectangle)
+    {
+        return $"({rectangle.X}, {rectangle.Y}, {rectangle.Width}, {rectangle.Height})";
+    }
+
+    private static string FormatMethodSignature(MethodInfo method)
+    {
+        return $"{method.Name}({string.Join(", ", method.GetParameters().Select(parameter => parameter.ParameterType.Name))})";
     }
 
     private static bool TryAssignScalarValue(Type targetType, Func<object?> getCurrentValue, Action<object> assign, int intValue)
@@ -329,6 +577,23 @@ internal static class BuildingPatches
         return false;
     }
 
+    private static void SetMemberValueIfPresent(object instance, string memberName, object value)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var type = instance.GetType();
+
+        var property = type.GetProperty(memberName, flags);
+        if (property is not null && property.CanWrite)
+        {
+            property.SetValue(instance, value);
+            return;
+        }
+
+        var field = type.GetField(memberName, flags);
+        if (field is not null)
+            field.SetValue(instance, value);
+    }
+
 }
 
 [HarmonyPatch]
@@ -352,6 +617,7 @@ internal static class CarpenterMenuPatches
             if (previewBuilding is null)
                 return;
 
+            TryReloadBuildingData(previewBuilding);
             var definition = Registry.Bind(previewBuilding);
             if (definition is null)
                 return;
@@ -362,6 +628,16 @@ internal static class CarpenterMenuPatches
         {
             Monitor.Log($"Failed to patch CarpenterMenu blueprint state: {ex}", LogLevel.Error);
         }
+    }
+
+    private static void TryReloadBuildingData(Building building)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var method = building.GetType().GetMethod("ReloadBuildingData", flags, binder: null, new[] { typeof(bool), typeof(bool) }, modifiers: null);
+        if (method is null)
+            return;
+
+        method.Invoke(building, new object[] { false, false });
     }
 
     private static T? GetMemberValue<T>(object instance, string memberName) where T : class
@@ -385,6 +661,10 @@ internal static class CarpenterMenuPatches
         TrySetIntMember(blueprint, "tilesWide", definition.Size.X);
         TrySetIntMember(blueprint, "tilesHigh", definition.Size.Y);
         TrySetPointLikeMember(blueprint, "humanDoor", new Point((int)definition.Door.X, (int)definition.Door.Y));
+        SetMemberValueIfPresent(blueprint, "textureName", ModEntry.Instance.GetPreviewTextureAssetName(definition.Id));
+        SetMemberValueIfPresent(blueprint, "Texture", ModEntry.Instance.GetPreviewTextureAssetName(definition.Id));
+        TrySetAreaLikeMember(blueprint, "sourceRect", definition.SourceRect ?? definition.Texture.Bounds);
+        TrySetAreaLikeMember(blueprint, "SourceRect", definition.SourceRect ?? definition.Texture.Bounds);
         if (definition.AnimalDoor is Rectangle animalDoor)
             TrySetAreaLikeMember(blueprint, "animalDoor", animalDoor);
     }
@@ -435,6 +715,23 @@ internal static class CarpenterMenuPatches
             return true;
 
         return false;
+    }
+
+    private static void SetMemberValueIfPresent(object instance, string memberName, object value)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var type = instance.GetType();
+
+        var property = type.GetProperty(memberName, flags);
+        if (property is not null && property.CanWrite)
+        {
+            property.SetValue(instance, value);
+            return;
+        }
+
+        var field = type.GetField(memberName, flags);
+        if (field is not null)
+            field.SetValue(instance, value);
     }
 
     private static bool TryAssignScalarValue(Type targetType, Func<object?> getCurrentValue, Action<object> assign, int intValue)
@@ -793,9 +1090,11 @@ internal static class BuildingDataPatches
 
         ApplyHumanDoor(buildingData, definition);
         ApplyAnimalDoor(buildingData, definition);
+        ApplyPreviewTexture(buildingData, definition);
         buildingData.CollisionMap = BuildCollisionMap(definition);
         ApplyChimneyMetadata(buildingData, definition);
         ApplyMaxOccupants(buildingData, definition);
+        ApplyAllowsFlooringUnderneath(buildingData, definition);
         MergeDrawLayers(buildingData, definition);
         MergeAdditionalPlacementTiles(buildingData, definition);
         MergeActionTiles(buildingData, definition);
@@ -832,6 +1131,9 @@ internal static class BuildingDataPatches
 
         foreach (var runtimeAction in definition.Actions)
         {
+            if (runtimeAction.TriggerOnTouch)
+                continue;
+
             for (var y = runtimeAction.Area.Top; y < runtimeAction.Area.Bottom; y++)
             {
                 for (var x = runtimeAction.Area.Left; x < runtimeAction.Area.Right; x++)
@@ -929,6 +1231,20 @@ internal static class BuildingDataPatches
             return;
 
         SetScalarMember(buildingData, "MaxOccupants", maxOccupants);
+    }
+
+    private static void ApplyAllowsFlooringUnderneath(BuildingData buildingData, RuntimeBuildingDefinition definition)
+    {
+        if (definition.AllowsFlooringUnderneath is not bool allowsFlooringUnderneath)
+            return;
+
+        SetScalarMember(buildingData, "AllowsFlooringUnderneath", allowsFlooringUnderneath);
+    }
+
+    private static void ApplyPreviewTexture(BuildingData buildingData, RuntimeBuildingDefinition definition)
+    {
+        SetMemberValue(buildingData, "Texture", ModEntry.Instance.GetPreviewTextureAssetName(definition.Id));
+        SetScalarMember(buildingData, "TextureSpriteRow", 0);
     }
 
     private static void ApplyChimneyMetadata(BuildingData buildingData, RuntimeBuildingDefinition definition)
@@ -1311,29 +1627,10 @@ internal static class BuildingGetDataPatches
             return;
 
         var definition = Registry.Get(__instance.buildingType?.Value);
-        if (definition is null || string.IsNullOrWhiteSpace(definition.Inherits))
+        if (definition is null)
             return;
 
-        var baseData = TryGetBaseBuildingData(definition.Inherits);
-        if (baseData is null)
-            return;
-
-        __result = CloneBuildingData(baseData);
-    }
-
-    private static BuildingData? TryGetBaseBuildingData(string baseBuildingId)
-    {
-        var buildingData = Game1.content.Load<Dictionary<string, BuildingData>>("Data/Buildings");
-        return buildingData.TryGetValue(baseBuildingId, out var baseData)
-            ? baseData
-            : null;
-    }
-
-    private static BuildingData CloneBuildingData(BuildingData data)
-    {
-        var json = JsonSerializer.Serialize(data);
-        return JsonSerializer.Deserialize<BuildingData>(json)
-            ?? throw new InvalidOperationException($"Failed to clone BuildingData for inherited building '{data.Name ?? "<unknown>"}'.");
+        __result = ModEntry.Instance.CreateSyntheticBuildingData(definition);
     }
 }
 

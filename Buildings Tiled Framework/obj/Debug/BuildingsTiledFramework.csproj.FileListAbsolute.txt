@@ -1,0 +1,21 @@
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/manifest.json
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.csproj.AssemblyReference.cache
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.csproj.SuggestedBindingRedirects.cache
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.dll.config
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.GeneratedMSBuildEditorConfig.editorconfig
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.AssemblyInfoInputs.cache
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.AssemblyInfo.cs
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.csproj.CoreCompileInputs.cache
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.sourcelink.json
+/Users/mac/Desktop/game/Stardew Mod/Buildings Tiled Framework/obj/Debug/BuildingsTiledFramework.dll
+/tmp/btf-build/manifest.json
+/tmp/btf-build/BuildingsTiledFramework.dll.config
+/tmp/btf-build/BuildingsTiledFramework.deps.json
+/tmp/btf-build/BuildingsTiledFramework.dll
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/BuildingsTiledFramework.dll.config
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/BuildingsTiledFramework.deps.json
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/BuildingsTiledFramework.dll
+/tmp/btf-build/README.md
+/tmp/btf-build/README.ko.md
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/README.md
+/Users/mac/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods/BuildingsTiledFramework/README.ko.md

@@ -5,6 +5,7 @@ namespace BuildingsTiledFramework.Runtime;
 
 public sealed class RuntimeBuildingDefinition
 {
+    public const string BackDrawLayer = "Back";
     public const string BuildingsDrawLayer = "Buildings";
     public const string FrontDrawLayer = "Front";
     public const string AlwaysFrontDrawLayer = "AlwaysFront";
@@ -51,6 +52,18 @@ public sealed class RuntimeBuildingDefinition
     public string? AnimalDoorCloseSound { get; set; }
 
     public int? MaxOccupants { get; set; }
+
+    public bool? AllowsFlooringUnderneath { get; set; }
+
+    public bool DrawShadow { get; set; }
+
+    public int? BuildCost { get; set; }
+
+    public int? BuildDays { get; set; }
+
+    public string? Builder { get; set; }
+
+    public List<RuntimeBuildMaterial> BuildMaterials { get; } = new();
 
     public List<RuntimeDrawLayer> BuildingDrawLayers { get; } = new();
 
@@ -107,15 +120,25 @@ public sealed class RuntimeBuildingDefinition
 
 public sealed class RuntimeAction
 {
-    public RuntimeAction(Rectangle area, string action)
+    public RuntimeAction(Rectangle area, string action, bool triggerOnTouch = false)
     {
         this.Area = area;
         this.Action = action;
+        this.TriggerOnTouch = triggerOnTouch;
     }
 
     public Rectangle Area { get; set; }
 
     public string Action { get; set; }
+
+    public bool TriggerOnTouch { get; set; }
+}
+
+public sealed class RuntimeBuildMaterial
+{
+    public string ItemId { get; set; } = string.Empty;
+
+    public int Amount { get; set; }
 }
 
 public sealed class RuntimeDrawLayer

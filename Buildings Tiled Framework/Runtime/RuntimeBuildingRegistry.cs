@@ -43,10 +43,19 @@ public sealed class RuntimeBuildingRegistry
         this.activeDefinitions.TryAdd(definition.Id, definition);
     }
 
+    public void Clear()
+    {
+        this.candidates.Clear();
+        this.activeDefinitions.Clear();
+    }
+
     public RuntimeBuildingDefinition? Get(string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
             return null;
+
+        if (this.TryResolveProgressionOverride(id, out var overrideDefinition))
+            return overrideDefinition;
 
         return this.activeDefinitions.TryGetValue(id, out var definition)
             ? definition
@@ -61,6 +70,11 @@ public sealed class RuntimeBuildingRegistry
         return this.candidates.TryGetValue(id, out var definitions)
             ? definitions
             : Array.Empty<RuntimeBuildingDefinition>();
+    }
+
+    public IReadOnlyCollection<RuntimeBuildingDefinition> GetActiveDefinitions()
+    {
+        return this.activeDefinitions.Values.ToArray();
     }
 
     public IEnumerable<string> GetConflictIds()
@@ -131,6 +145,75 @@ public sealed class RuntimeBuildingRegistry
             : Game1.GetSeasonForLocation(location).ToString();
 
         return definition.ResolveForSeason(season);
+    }
+
+    private bool TryResolveProgressionOverride(string id, out RuntimeBuildingDefinition? definition)
+    {
+        definition = null;
+
+        if (!string.Equals(id, "Greenhouse", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (this.IsGreenhouseUnlocked())
+            return false;
+
+        if (!this.activeDefinitions.TryGetValue("Greenhouse_prev", out definition))
+            return false;
+
+        return true;
+    }
+
+    private bool IsGreenhouseUnlocked()
+    {
+        try
+        {
+            var farm = Game1.getFarm();
+            if (farm is null)
+                return false;
+
+            return TryReadBoolMember(farm, "greenhouseUnlocked")
+                || TryReadBoolMember(farm, "GreenhouseUnlocked");
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReadBoolMember(object instance, string memberName)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        var type = instance.GetType();
+
+        var property = type.GetProperty(memberName, flags);
+        if (property is not null && TryConvertToBool(property.GetValue(instance), out var propertyValue))
+            return propertyValue;
+
+        var field = type.GetField(memberName, flags);
+        return field is not null && TryConvertToBool(field.GetValue(instance), out var fieldValue) && fieldValue;
+    }
+
+    private static bool TryConvertToBool(object? rawValue, out bool value)
+    {
+        switch (rawValue)
+        {
+            case bool boolValue:
+                value = boolValue;
+                return true;
+            case null:
+                value = false;
+                return false;
+        }
+
+        var wrappedValueProperty = rawValue.GetType().GetProperty("Value", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (wrappedValueProperty?.CanRead == true && wrappedValueProperty.PropertyType == typeof(bool))
+        {
+            value = (bool)(wrappedValueProperty.GetValue(rawValue) ?? false);
+            return true;
+        }
+
+        value = false;
+        return false;
     }
 
     private void TryApplyDefinition(Building building, RuntimeBuildingDefinition definition)

@@ -1,10 +1,10 @@
 {
   "Name": "Buildings Tiled Framework",
   "Author": "slO",
-  "Version": "0.0.1",
+  "Version": "0.0.2",
   "Description": "Runtime building definitions loaded from Tiled-style data and bound to Building instances.",
   "UniqueID": "slO.BuildingsTiledFramework",
   "EntryDll": "BuildingsTiledFramework.dll",
   "MinimumApiVersion": "4.0.0",
-  "UpdateKeys": []
+  "UpdateKeys": ["Nexus:43893"]
 }
