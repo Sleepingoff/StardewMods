@@ -19,7 +19,6 @@ internal static class BuildingPatches
     private static RuntimeBuildingRegistry registry = null!;
     private static IMonitor monitor = null!;
     private static string? lastTriggeredTouchActionKey;
-    private const string TouchActionLogPrefix = "[TouchAction]";
 
     public static void Initialize(RuntimeBuildingRegistry runtimeRegistry, IMonitor modMonitor)
     {
@@ -86,15 +85,20 @@ internal static class BuildingPatches
         if (backTexture is not null)
             DrawLayerTexture(b, __instance, definition, backTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BackDrawLayer));
 
+        var buildingsTileSprites = definition.GetTileSprites(RuntimeBuildingDefinition.BuildingsDrawLayer);
         var buildingsTexture = definition.GetDrawTexture(RuntimeBuildingDefinition.BuildingsDrawLayer);
-        if (buildingsTexture is null)
+        if (buildingsTexture is null && buildingsTileSprites.Count == 0)
             return true;
 
-        if (definition.DrawShadow)
+        if (definition.DrawShadow && buildingsTexture is not null)
         {
             DrawShadowTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
         }
-        DrawLayerTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
+
+        if (buildingsTileSprites.Count > 0)
+            DrawTileSprites(b, __instance, definition, buildingsTileSprites);
+        else if (buildingsTexture is not null)
+            DrawLayerTexture(b, __instance, definition, buildingsTexture, GetLayerDepth(__instance, definition, RuntimeBuildingDefinition.BuildingsDrawLayer));
 
         var frontTexture = definition.GetDrawTexture(RuntimeBuildingDefinition.FrontDrawLayer);
         if (frontTexture is not null)
@@ -112,6 +116,29 @@ internal static class BuildingPatches
         var sourceRect = definition.SourceRect ?? texture.Bounds;
         var destinationRectangle = GetDestinationRectangle(building, definition, sourceRect);
         b.Draw(texture, destinationRectangle, sourceRect, Color.White, 0f, Vector2.Zero, SpriteEffects.None, depth);
+    }
+
+    private static void DrawTileSprites(SpriteBatch b, Building building, RuntimeBuildingDefinition definition, IReadOnlyList<RuntimeTileSprite> tileSprites)
+    {
+        var screenPosition = GetTopLeftScreenPosition(building, definition);
+        foreach (var tileSprite in tileSprites)
+        {
+            var destinationRectangle = new Rectangle(
+                (int)screenPosition.X + tileSprite.DrawPosition.X * 4,
+                (int)screenPosition.Y + tileSprite.DrawPosition.Y * 4,
+                tileSprite.SourceRect.Width * 4,
+                tileSprite.SourceRect.Height * 4);
+
+            b.Draw(
+                tileSprite.Texture,
+                destinationRectangle,
+                tileSprite.SourceRect,
+                Color.White,
+                tileSprite.Rotation,
+                Vector2.Zero,
+                tileSprite.Effects,
+                GetTileSpriteDepth(building, definition, tileSprite));
+        }
     }
 
     private static void DrawShadowTexture(SpriteBatch b, Building building, RuntimeBuildingDefinition definition, Texture2D texture, float baseDepth)
@@ -137,11 +164,7 @@ internal static class BuildingPatches
 
     private static Rectangle GetDestinationRectangle(Building building, RuntimeBuildingDefinition definition, Rectangle sourceRect)
     {
-        var screenPosition = Game1.GlobalToLocal(
-            Game1.viewport,
-            new Vector2(
-                (building.tileX.Value - definition.FootprintOrigin.X) * Game1.tileSize,
-                (building.tileY.Value - definition.FootprintOrigin.Y) * Game1.tileSize));
+        var screenPosition = GetTopLeftScreenPosition(building, definition);
 
         return new Rectangle(
             (int)screenPosition.X,
@@ -150,16 +173,33 @@ internal static class BuildingPatches
             sourceRect.Height * 4);
     }
 
+    private static Vector2 GetTopLeftScreenPosition(Building building, RuntimeBuildingDefinition definition)
+    {
+        return Game1.GlobalToLocal(
+            Game1.viewport,
+            new Vector2(
+                (building.tileX.Value - definition.FootprintOrigin.X) * Game1.tileSize,
+                (building.tileY.Value - definition.FootprintOrigin.Y) * Game1.tileSize));
+    }
+
     private static float GetLayerDepth(Building building, RuntimeBuildingDefinition definition, string drawLayer)
     {
         var baseDepth = Math.Max(0f, ((building.tileY.Value + definition.Size.Y) * Game1.tileSize - 24f) / 10000f);
         return drawLayer switch
         {
             RuntimeBuildingDefinition.BackDrawLayer => 0.0000001f,
+            RuntimeBuildingDefinition.BuildingsDrawLayer => Math.Max(0f, baseDepth - 0.0001f),
             RuntimeBuildingDefinition.FrontDrawLayer => Math.Min(0.9998f, baseDepth + 0.0001f),
             RuntimeBuildingDefinition.AlwaysFrontDrawLayer => Math.Min(0.9999f, baseDepth + 0.0002f),
             _ => baseDepth,
         };
+    }
+
+    private static float GetTileSpriteDepth(Building building, RuntimeBuildingDefinition definition, RuntimeTileSprite tileSprite)
+    {
+        var worldBottom = ((building.tileY.Value - definition.FootprintOrigin.Y) * Game1.tileSize)
+            + ((tileSprite.DrawPosition.Y + tileSprite.SourceRect.Height) * 4f);
+        return Math.Max(0f, (worldBottom - 24f) / 10000f);
     }
 
     [HarmonyPatch(typeof(GameLocation), nameof(GameLocation.UpdateWhenCurrentLocation))]
@@ -168,13 +208,7 @@ internal static class BuildingPatches
     {
         try
         {
-            monitor.Log(
-                $"{TouchActionLogPrefix} UpdateWhenCurrentLocation on '{__instance.NameOrUniqueName}' ({__instance.GetType().FullName}).",
-                LogLevel.Debug);
             var buildings = GetLocationBuildings(__instance);
-            monitor.Log(
-                $"{TouchActionLogPrefix} Location '{__instance.NameOrUniqueName}' exposed {buildings.Count} building(s) for touch evaluation.",
-                LogLevel.Debug);
             if (buildings.Count == 0)
             {
                 lastTriggeredTouchActionKey = null;
@@ -186,63 +220,28 @@ internal static class BuildingPatches
             {
                 var definition = registry.Get(building);
                 if (definition is null)
-                {
-                    monitor.Log(
-                        $"{TouchActionLogPrefix} Skipped building '{building.buildingType?.Value}' at ({building.tileX.Value}, {building.tileY.Value}) because no runtime definition is bound.",
-                        LogLevel.Debug);
                     continue;
-                }
 
                 var touchActions = definition.Actions.Where(action => action.TriggerOnTouch).ToList();
                 if (touchActions.Count == 0)
-                {
-                    monitor.Log(
-                        $"{TouchActionLogPrefix} Runtime building '{definition.Id}' at ({building.tileX.Value}, {building.tileY.Value}) has no TouchAction entries after normalization.",
-                        LogLevel.Debug);
                     continue;
-                }
 
                 var localTile = new Point(
                     playerTile.X - building.tileX.Value,
                     playerTile.Y - building.tileY.Value);
-                monitor.Log(
-                    $"{TouchActionLogPrefix} Evaluating building '{definition.Id}' at ({building.tileX.Value}, {building.tileY.Value}) in '{__instance.NameOrUniqueName}': playerTile=({playerTile.X}, {playerTile.Y}), localTile=({localTile.X}, {localTile.Y}), touchActions={touchActions.Count}.",
-                    LogLevel.Debug);
 
                 foreach (var runtimeAction in touchActions)
                 {
                     var containsPlayer = runtimeAction.Area.Contains(localTile);
-                    monitor.Log(
-                        $"{TouchActionLogPrefix} Checked area {FormatRectangle(runtimeAction.Area)} for '{definition.Id}': action='{runtimeAction.Action}', containsPlayer={containsPlayer}.",
-                        LogLevel.Debug);
                     if (!containsPlayer)
                         continue;
 
                     var actionKey = $"{__instance.NameOrUniqueName}:{building.tileX.Value}:{building.tileY.Value}:{runtimeAction.Action}:{playerTile.X}:{playerTile.Y}";
                     if (string.Equals(lastTriggeredTouchActionKey, actionKey, StringComparison.Ordinal))
-                    {
-                        monitor.Log(
-                            $"{TouchActionLogPrefix} Skipped duplicate trigger for '{definition.Id}': action='{runtimeAction.Action}', actionKey='{actionKey}'.",
-                            LogLevel.Debug);
                         return;
-                    }
 
-                    monitor.Log(
-                        $"{TouchActionLogPrefix} Player entered TouchAction area for '{definition.Id}': action='{runtimeAction.Action}', worldTile=({playerTile.X}, {playerTile.Y}), localArea={FormatRectangle(runtimeAction.Area)}.",
-                        LogLevel.Debug);
                     if (TryPerformTouchAction(__instance, runtimeAction.Action, playerTile))
-                    {
                         lastTriggeredTouchActionKey = actionKey;
-                        monitor.Log(
-                            $"{TouchActionLogPrefix} Trigger succeeded for '{definition.Id}': action='{runtimeAction.Action}', actionKey='{actionKey}'.",
-                            LogLevel.Debug);
-                    }
-                    else
-                    {
-                        monitor.Log(
-                            $"{TouchActionLogPrefix} Trigger failed for '{definition.Id}': action='{runtimeAction.Action}', worldTile=({playerTile.X}, {playerTile.Y}).",
-                            LogLevel.Debug);
-                    }
 
                     return;
                 }
@@ -263,12 +262,7 @@ internal static class BuildingPatches
         var field = property is null ? location.GetType().GetField("buildings", flags) ?? location.GetType().GetField("Buildings", flags) : null;
         var value = property?.GetValue(location) ?? field?.GetValue(location);
         if (value is not IEnumerable enumerable)
-        {
-            monitor.Log(
-                $"{TouchActionLogPrefix} Location '{location.NameOrUniqueName}' ({location.GetType().FullName}) does not expose an enumerable buildings collection.",
-                LogLevel.Debug);
             return new List<Building>();
-        }
 
         var buildings = new List<Building>();
         foreach (var item in enumerable)
@@ -375,9 +369,6 @@ internal static class BuildingPatches
         var splitAction = action.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var tileVector = new Vector2(playerTile.X, playerTile.Y);
         var tileLocation = new XTileLocation(playerTile.X, playerTile.Y);
-        monitor.Log(
-            $"{TouchActionLogPrefix} Resolving GameLocation.performTouchAction for action='{action}' at worldTile=({playerTile.X}, {playerTile.Y}). OverloadCount={methods.Length}.",
-            LogLevel.Debug);
 
         foreach (var method in methods)
         {
@@ -386,13 +377,7 @@ internal static class BuildingPatches
 
             try
             {
-                monitor.Log(
-                    $"{TouchActionLogPrefix} Invoking overload '{FormatMethodSignature(method)}' for action='{action}'.",
-                    LogLevel.Debug);
                 method.Invoke(location, args);
-                monitor.Log(
-                    $"{TouchActionLogPrefix} GameLocation.performTouchAction completed for action='{action}' using '{FormatMethodSignature(method)}'.",
-                    LogLevel.Debug);
                 return true;
             }
             catch (TargetInvocationException ex)
@@ -449,26 +434,10 @@ internal static class BuildingPatches
                 continue;
             }
 
-            monitor.Log(
-                $"{TouchActionLogPrefix} Rejected overload '{FormatMethodSignature(method)}' for action='{action}' because parameter {i} type '{parameterType.FullName}' is unsupported.",
-                LogLevel.Debug);
             return false;
         }
 
-        monitor.Log(
-            $"{TouchActionLogPrefix} Matched overload '{FormatMethodSignature(method)}' for action='{action}'.",
-            LogLevel.Debug);
         return true;
-    }
-
-    private static string FormatRectangle(Rectangle rectangle)
-    {
-        return $"({rectangle.X}, {rectangle.Y}, {rectangle.Width}, {rectangle.Height})";
-    }
-
-    private static string FormatMethodSignature(MethodInfo method)
-    {
-        return $"{method.Name}({string.Join(", ", method.GetParameters().Select(parameter => parameter.ParameterType.Name))})";
     }
 
     private static bool TryAssignScalarValue(Type targetType, Func<object?> getCurrentValue, Action<object> assign, int intValue)

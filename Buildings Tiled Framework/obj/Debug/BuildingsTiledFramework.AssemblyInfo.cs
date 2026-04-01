@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BuildingsTiledFramework")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fa250f8f230a16280e3670f1eaae3f3b0eb424ae")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+efb7d11c38ba97b2927782515eb8d08731d505f1")]
 [assembly: System.Reflection.AssemblyProductAttribute("BuildingsTiledFramework")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BuildingsTiledFramework")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

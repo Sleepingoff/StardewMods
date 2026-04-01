@@ -18,6 +18,15 @@ It loads runtime definitions from dependent content packs and applies them with 
 
 ## Changelog
 
+### 2026-04-01
+
+- Added season-aware game asset tileset lookup for `.`-prefixed asset names like `.spring_outdoorsTileSheet`
+- Added automatic reload when the in-game season changes
+- Added TMX flip-flag parsing and rendering for flipped tiles
+- Fixed tileset column resolution to use the loaded texture width when needed
+- Changed unsupported external tileset references to be skipped with a warning instead of failing the whole pack load
+- Changed `Buildings` layer rendering to use per-tile depth so individual building tiles sort more naturally against the player
+
 ### 2026-03-31
 
 - Added progression override support for `Greenhouse_prev.tmx` before greenhouse unlock and `Greenhouse.tmx` after unlock
@@ -122,13 +131,15 @@ Supported:
 
 - Orthogonal maps
 - CSV tile layer data
-- Single tileset image
+- Inline tilesets declared directly in the TMX
 - Object layers with `Action` and `Role`
 - Root properties described below
 
 Not supported:
 
 - Infinite maps
+- External TSX tilesets referenced through `<tileset source="...">`
+- Tileset image paths outside the content pack unless they are `.`-prefixed game asset references
 - Full Tiled feature coverage
 - Arbitrary vanilla `BuildingData` replacement
 
@@ -216,6 +227,15 @@ Example:
 
 - `<image source="../../Assets/.Greenhouse.png" .../>` -> first tries game asset `Greenhouse`
 - if that game asset can't be loaded, SMAPI logs a warning and the original content pack path is used instead
+
+If the asset name starts with `spring`, `summer`, `fall`, or `winter`, the loader first tries the current season variant of that asset name.
+
+Examples:
+
+- `.spring_outdoorsTileSheet` -> in summer, first tries `summer_outdoorsTileSheet`
+- `.spring_town` -> in winter, first tries `winter_town`
+
+If a TMX uses an external TSX tileset or a non-`.` tileset image path outside the content pack, that TMX is skipped and a warning is logged.
 
 ## Tile Layers
 

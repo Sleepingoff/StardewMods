@@ -32,6 +32,7 @@ public sealed class ModEntry : Mod
     internal ITiledObjectProvider? TiledObjectProvider { get; set; }
 
     private ModConfig Config { get; set; } = new();
+    private string? lastLoadedSeason;
 
     public override void Entry(IModHelper helper)
     {
@@ -53,6 +54,7 @@ public sealed class ModEntry : Mod
             this.OnReloadCommand);
         helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
         helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
+        helper.Events.GameLoop.DayStarted += this.OnDayStarted;
         helper.Events.Content.AssetRequested += this.OnAssetRequested;
     }
 
@@ -63,6 +65,19 @@ public sealed class ModEntry : Mod
 
     private void OnSaveLoaded(object? sender, StardewModdingAPI.Events.SaveLoadedEventArgs e)
     {
+        this.ReloadContentPackBuildings();
+        this.RebindLoadedBuildings();
+    }
+
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    {
+        if (!Context.IsWorldReady)
+            return;
+
+        var currentSeason = Game1.currentSeason;
+        if (string.Equals(this.lastLoadedSeason, currentSeason, StringComparison.OrdinalIgnoreCase))
+            return;
+
         this.ReloadContentPackBuildings();
         this.RebindLoadedBuildings();
     }
@@ -206,6 +221,7 @@ public sealed class ModEntry : Mod
         this.LoadContentPackBuildings();
         this.InvalidatePreviewTextureCache();
         this.ApplyConfiguredSelections();
+        this.lastLoadedSeason = Context.IsWorldReady ? Game1.currentSeason : null;
     }
 
     private void OnReloadCommand(string command, string[] args)
@@ -307,7 +323,12 @@ public sealed class ModEntry : Mod
             definition.SourceFilePath = tiledFilePath;
 
             this.Registry.Register(definition);
-            this.LogDefinitionRegistration(definition, isSeasonal: false);
+        }
+        catch (UnsupportedExternalTilesetException ex)
+        {
+            this.Monitor.Log(
+                $"Skipped building definition from '{tiledFilePath}' in content pack '{contentPack.Manifest.UniqueID}': {ex.Message}",
+                LogLevel.Warn);
         }
         catch (Exception ex)
         {
@@ -347,7 +368,13 @@ public sealed class ModEntry : Mod
                 return;
 
             this.Registry.Register(rootDefinition);
-            this.LogDefinitionRegistration(rootDefinition, isSeasonal: true);
+        }
+        catch (UnsupportedExternalTilesetException ex)
+        {
+            var samplePath = seasonFilePaths.Values.FirstOrDefault() ?? string.Empty;
+            this.Monitor.Log(
+                $"Skipped seasonal building definition from '{samplePath}' in content pack '{contentPack.Manifest.UniqueID}': {ex.Message}",
+                LogLevel.Warn);
         }
         catch (Exception ex)
         {
@@ -723,15 +750,4 @@ public sealed class ModEntry : Mod
             ?? throw new InvalidOperationException($"Failed to clone BuildingData for inherited building '{data.Name ?? "<unknown>"}'.");
     }
 
-    private void LogDefinitionRegistration(RuntimeBuildingDefinition definition, bool isSeasonal)
-    {
-    }
-
-    private static string FormatBuildMaterialsForLog(RuntimeBuildingDefinition definition)
-    {
-        if (definition.BuildMaterials.Count == 0)
-            return "<none>";
-
-        return string.Join(", ", definition.BuildMaterials.Select(p => $"{p.ItemId} x{p.Amount}"));
-    }
 }

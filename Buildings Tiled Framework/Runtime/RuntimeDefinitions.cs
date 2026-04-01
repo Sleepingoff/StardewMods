@@ -12,6 +12,7 @@ public sealed class RuntimeBuildingDefinition
 
     private readonly Dictionary<string, RuntimeBuildingDefinition> seasonalVariants = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> drawTextures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<RuntimeTileSprite>> tileSprites = new(StringComparer.OrdinalIgnoreCase);
 
     public string Id { get; set; } = string.Empty;
 
@@ -72,6 +73,7 @@ public sealed class RuntimeBuildingDefinition
     public HashSet<Point> CollisionTiles { get; } = new();
 
     public IReadOnlyDictionary<string, Texture2D> DrawTextures => this.drawTextures;
+    public IReadOnlyDictionary<string, List<RuntimeTileSprite>> TileSprites => this.tileSprites;
 
     public IReadOnlyDictionary<string, RuntimeBuildingDefinition> SeasonalVariants => this.seasonalVariants;
 
@@ -115,6 +117,24 @@ public sealed class RuntimeBuildingDefinition
         return string.Equals(drawLayer, BuildingsDrawLayer, StringComparison.OrdinalIgnoreCase)
             ? this.Texture
             : null;
+    }
+
+    public void AddTileSprite(string drawLayer, RuntimeTileSprite tileSprite)
+    {
+        if (!this.tileSprites.TryGetValue(drawLayer, out var sprites))
+        {
+            sprites = new List<RuntimeTileSprite>();
+            this.tileSprites[drawLayer] = sprites;
+        }
+
+        sprites.Add(tileSprite);
+    }
+
+    public IReadOnlyList<RuntimeTileSprite> GetTileSprites(string drawLayer)
+    {
+        return this.tileSprites.TryGetValue(drawLayer, out var sprites)
+            ? sprites
+            : Array.Empty<RuntimeTileSprite>();
     }
 }
 
@@ -162,4 +182,17 @@ public sealed class RuntimeDrawLayer
     public int FramesPerRow { get; set; } = -1;
 
     public Point AnimalDoorOffset { get; set; }
+}
+
+public sealed class RuntimeTileSprite
+{
+    public Texture2D Texture { get; set; } = null!;
+
+    public Rectangle SourceRect { get; set; }
+
+    public Point DrawPosition { get; set; }
+
+    public SpriteEffects Effects { get; set; }
+
+    public float Rotation { get; set; }
 }

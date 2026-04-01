@@ -18,6 +18,15 @@ Tiled `.tmx` 파일을 이용해 Stardew Valley의 건물을 런타임에 덮어
 
 ## 변경 내역
 
+### 2026-04-01
+
+- `.spring_outdoorsTileSheet` 같은 `.` 접두 게임 에셋 이름에 대해 현재 계절 기준 타일셋 탐색 추가
+- 게임 내 계절이 바뀌면 자동으로 다시 로드하도록 변경
+- 뒤집힌 TMX 타일의 flip 플래그 파싱 및 렌더링 지원 추가
+- 필요할 때 실제 로드된 텍스처 폭 기준으로 tileset columns를 다시 계산하도록 수정
+- 지원하지 않는 외부 tileset 참조는 전체 팩 로드를 실패시키지 않고 경고 후 스킵하도록 변경
+- `Buildings` 레이어를 타일 단위 depth로 그리도록 바꿔 개별 건물 타일 정렬 개선
+
 ### 2026-03-31
 
 - `Greenhouse_prev.tmx`는 온실 해금 전, `Greenhouse.tmx`는 해금 후에 사용하도록 진행도 분기 추가
@@ -121,13 +130,15 @@ Buildings/winter/Farmhouse.tmx
 
 - 직교(Orthogonal) 맵
 - CSV 타일 레이어 데이터
-- 단일 타일셋 이미지
+- TMX 내부에 직접 선언된 inline tileset
 - `Action`, `TouchAction`, `Role` 속성이 있는 오브젝트 레이어
 - 아래에 설명한 루트 속성
 
 비지원:
 
 - 무한 맵
+- `<tileset source="...">` 형태의 외부 TSX tileset
+- `.` 게임 에셋 참조가 아닌 content pack 외부 타일셋 이미지 경로
 - Tiled 전체 기능 전부
 - 임의의 바닐라 `BuildingData` 완전 대체
 
@@ -215,6 +226,15 @@ Buildings/winter/Farmhouse.tmx
 
 - `<image source="../../Assets/.Greenhouse.png" .../>` -> 먼저 게임 자산 `Greenhouse` 시도
 - 게임 자산을 로드하지 못하면 SMAPI 경고를 남기고 원래 content pack 경로로 폴백
+
+에셋 이름이 `spring`, `summer`, `fall`, `winter` 중 하나로 시작하면 현재 계절 이름으로 먼저 바꿔 시도합니다.
+
+예:
+
+- `.spring_outdoorsTileSheet` -> 여름에는 먼저 `summer_outdoorsTileSheet` 시도
+- `.spring_town` -> 겨울에는 먼저 `winter_town` 시도
+
+TMX가 외부 TSX tileset이나 `.` 게임 에셋 참조가 아닌 content pack 외부 이미지 경로를 사용하면, 해당 TMX는 로드하지 않고 경고만 남깁니다.
 
 ## 타일 레이어
 

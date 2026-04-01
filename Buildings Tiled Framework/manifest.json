@@ -1,7 +1,7 @@
 {
   "Name": "Buildings Tiled Framework",
   "Author": "slO",
-  "Version": "0.0.2",
+  "Version": "0.0.3",
   "Description": "Runtime building definitions loaded from Tiled-style data and bound to Building instances.",
   "UniqueID": "slO.BuildingsTiledFramework",
   "EntryDll": "BuildingsTiledFramework.dll",

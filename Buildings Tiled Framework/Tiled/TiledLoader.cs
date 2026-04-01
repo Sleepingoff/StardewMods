@@ -10,8 +10,22 @@ using System.Xml.Linq;
 
 namespace BuildingsTiledFramework.Tiled;
 
+public sealed class UnsupportedExternalTilesetException : InvalidOperationException
+{
+    public UnsupportedExternalTilesetException(string message)
+        : base(message)
+    {
+    }
+}
+
 public sealed class TiledLoader
 {
+    private static readonly string[] SeasonalPrefixes = new[] { "spring", "summer", "fall", "winter" };
+    private const uint TiledFlippedHorizontallyFlag = 0x80000000;
+    private const uint TiledFlippedVerticallyFlag = 0x40000000;
+    private const uint TiledFlippedDiagonallyFlag = 0x20000000;
+    private const uint TiledFlipFlagMask = 0xE0000000;
+
     private readonly IModHelper helper;
     private readonly IMonitor monitor;
     private readonly ITiledObjectProvider? tiledObjectProvider;
@@ -117,26 +131,13 @@ public sealed class TiledLoader
         var tileWidth = this.GetRequiredIntAttribute(mapElement, "tilewidth");
         var tileHeight = this.GetRequiredIntAttribute(mapElement, "tileheight");
 
-        var tilesetElement = mapElement.Element("tileset")
-            ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' is missing a tileset.");
-        var imageElement = tilesetElement.Element("image")
-            ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' is missing a tileset image.");
+        var tilesets = this.LoadTilesets(mapElement, tiledFilePath, contentPack);
+        if (tilesets.Count == 0)
+            throw new InvalidOperationException($"TMX file '{tiledFilePath}' is missing a tileset.");
 
-        var firstGid = this.GetOptionalIntAttribute(tilesetElement, "firstgid") ?? 1;
-        var columns = this.GetRequiredIntAttribute(tilesetElement, "columns");
-        var tilesetTileWidth = this.GetRequiredIntAttribute(tilesetElement, "tilewidth");
-        var tilesetTileHeight = this.GetRequiredIntAttribute(tilesetElement, "tileheight");
-        var imageSource = imageElement.Attribute("source")?.Value
-            ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' is missing an image source.");
-
-        var tilesetTexture = this.LoadTilesetTextureFromSource(imageSource, tiledFilePath, contentPack);
         var drawTextures = this.ComposeDrawTextures(
             mapElement,
-            tilesetTexture,
-            firstGid,
-            columns,
-            tilesetTileWidth,
-            tilesetTileHeight,
+            tilesets,
             mapWidth,
             mapHeight,
             tileWidth,
@@ -161,6 +162,15 @@ public sealed class TiledLoader
             Builder = NormalizeBuilder(this.GetStringProperty(properties, "Builder")),
         };
 
+        this.PopulateTileSprites(
+            mapElement,
+            definition,
+            tilesets,
+            mapWidth,
+            mapHeight,
+            tileWidth,
+            tileHeight);
+
         foreach (var pair in drawTextures)
             definition.SetDrawTexture(pair.Key, pair.Value);
 
@@ -183,7 +193,7 @@ public sealed class TiledLoader
 
         this.PopulateBuildMaterials(definition, this.GetStringProperty(properties, "BuildMaterials"), tiledFilePath);
 
-        this.ReadObjectLayerData(mapElement, tileWidth, tileHeight, definition, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
+        this.ReadObjectLayerData(mapElement, tileWidth, tileHeight, definition, tilesets);
 
         var rawCollisionTiles = this.ReadCollisionTiles(mapElement, mapWidth);
         foreach (var collisionTile in rawCollisionTiles)
@@ -215,6 +225,15 @@ public sealed class TiledLoader
             var assetName = texturePath[1..].TrimStart('/', '\\');
             if (string.IsNullOrWhiteSpace(assetName))
                 throw new InvalidOperationException("Texture property started with '.' but no game asset name was provided.");
+
+            foreach (var candidate in this.GetSeasonAwareAssetCandidates(assetName))
+            {
+                var parsedAssetName = this.helper.GameContent.ParseAssetName(candidate);
+                if (!this.helper.GameContent.DoesAssetExist<Texture2D>(parsedAssetName))
+                    continue;
+
+                return this.helper.GameContent.Load<Texture2D>(candidate);
+            }
 
             return this.helper.GameContent.Load<Texture2D>(assetName);
         }
@@ -271,32 +290,80 @@ public sealed class TiledLoader
         var isInsideContentPack =
             string.Equals(normalizedFullImagePath, normalizedContentPackDirectory, StringComparison.Ordinal)
             || normalizedFullImagePath.StartsWith(normalizedContentPackDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
-        if (!isInsideContentPack)
-            throw new InvalidOperationException($"Tileset image '{imageSource}' points outside the content pack.");
 
-        var relativePath = Path.GetRelativePath(contentPackDirectory, fullImagePath);
+        var fallbackPathLabel = isInsideContentPack
+            ? Path.GetRelativePath(contentPackDirectory, fullImagePath)
+            : "<outside content pack>";
 
-        var gameAssetCandidates = this.GetGameAssetNamesFromTilesetSource(imageSource);
-        foreach (var gameAssetName in gameAssetCandidates)
+        if (imageSource.StartsWith(".", StringComparison.Ordinal) || !isInsideContentPack)
         {
-            var parsedAssetName = this.helper.GameContent.ParseAssetName(gameAssetName);
-            if (!this.helper.GameContent.DoesAssetExist<Texture2D>(parsedAssetName))
-                continue;
+            var gameAssetCandidates = this.GetGameAssetNamesFromTilesetSource(imageSource);
+            foreach (var gameAssetName in gameAssetCandidates)
+            {
+                var parsedAssetName = this.helper.GameContent.ParseAssetName(gameAssetName);
+                if (!this.helper.GameContent.DoesAssetExist<Texture2D>(parsedAssetName))
+                    continue;
 
-            try
-            {
-                var texture = Game1.content.Load<Texture2D>(gameAssetName);
-                return texture;
-            }
-            catch (Exception ex)
-            {
-                this.monitor.Log(
-                    $"Tileset image source '{imageSource}' in '{tiledFilePath}' requested game asset '{gameAssetName}', but it could not be loaded. Falling back to content pack path '{relativePath}'. Error: {ex.Message}",
-                    LogLevel.Warn);
+                try
+                {
+                    var texture = Game1.content.Load<Texture2D>(gameAssetName);
+                    return texture;
+                }
+                catch (Exception ex)
+                {
+                    this.monitor.Log(
+                        $"Tileset image source '{imageSource}' in '{tiledFilePath}' requested game asset '{gameAssetName}', but it could not be loaded. Falling back to content pack path '{fallbackPathLabel}'. Error: {ex.Message}",
+                        LogLevel.Warn);
+                }
             }
         }
 
+        if (!isInsideContentPack)
+            throw new UnsupportedExternalTilesetException($"Tileset image '{imageSource}' points outside the content pack.");
+
+        var relativePath = Path.GetRelativePath(contentPackDirectory, fullImagePath);
+
         return contentPack.ModContent.Load<Texture2D>(relativePath);
+    }
+
+    private List<LoadedTileset> LoadTilesets(XElement mapElement, string tiledFilePath, IContentPack contentPack)
+    {
+        var tilesets = new List<LoadedTileset>();
+        foreach (var tilesetElement in mapElement.Elements("tileset"))
+        {
+            var externalTilesetSource = tilesetElement.Attribute("source")?.Value;
+            if (!string.IsNullOrWhiteSpace(externalTilesetSource))
+            {
+                throw new UnsupportedExternalTilesetException(
+                    $"TMX file '{tiledFilePath}' uses external tileset source '{externalTilesetSource}', which is not supported.");
+            }
+
+            var imageElement = tilesetElement.Element("image")
+                ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' has a tileset without an image.");
+
+            var firstGid = this.GetOptionalIntAttribute(tilesetElement, "firstgid") ?? 1;
+            var tilesetTileWidth = this.GetRequiredIntAttribute(tilesetElement, "tilewidth");
+            var tilesetTileHeight = this.GetRequiredIntAttribute(tilesetElement, "tileheight");
+            var imageSource = imageElement.Attribute("source")?.Value
+                ?? throw new InvalidOperationException($"TMX file '{tiledFilePath}' has a tileset without an image source.");
+
+            var tilesetTexture = this.LoadTilesetTextureFromSource(imageSource, tiledFilePath, contentPack);
+            var columns = this.ResolveTilesetColumns(tilesetElement, tilesetTexture, tilesetTileWidth);
+
+            tilesets.Add(new LoadedTileset(firstGid, columns, tilesetTileWidth, tilesetTileHeight, tilesetTexture));
+        }
+
+        return tilesets
+            .OrderBy(p => p.FirstGid)
+            .ToList();
+    }
+
+    private int ResolveTilesetColumns(XElement tilesetElement, Texture2D tilesetTexture, int tileWidth)
+    {
+        if (tileWidth > 0 && tilesetTexture.Width >= tileWidth && tilesetTexture.Width % tileWidth == 0)
+            return tilesetTexture.Width / tileWidth;
+
+        return this.GetRequiredIntAttribute(tilesetElement, "columns");
     }
 
     private static string NormalizePathForComparison(string path)
@@ -309,10 +376,12 @@ public sealed class TiledLoader
     private List<string> GetGameAssetNamesFromTilesetSource(string imageSource)
     {
         var fileName = Path.GetFileName(imageSource);
-        if (string.IsNullOrWhiteSpace(fileName) || !fileName.StartsWith(".", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(fileName))
             return new List<string>();
 
-        var assetFileName = fileName[1..];
+        var assetFileName = fileName.StartsWith(".", StringComparison.Ordinal)
+            ? fileName[1..]
+            : fileName;
         if (string.IsNullOrWhiteSpace(assetFileName))
             return new List<string>();
 
@@ -323,39 +392,75 @@ public sealed class TiledLoader
         var candidates = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddCandidate(string? candidate)
-        {
-            if (string.IsNullOrWhiteSpace(candidate))
-                return;
-
-            var normalized = candidate.Replace('\\', '/').Trim().Trim('/');
-            if (string.IsNullOrWhiteSpace(normalized))
-                return;
-
-            if (seen.Add(normalized))
-                candidates.Add(normalized);
-        }
-
         var sourceDirectory = Path.GetDirectoryName(imageSource)?.Replace('\\', '/').Trim();
         if (!string.IsNullOrWhiteSpace(sourceDirectory) && sourceDirectory != ".")
-            AddCandidate($"{sourceDirectory.Trim('/')}/{assetBaseName}");
+            this.AddSeasonAwareCandidates(candidates, seen, $"{sourceDirectory.Trim('/')}/{assetBaseName}");
 
-        AddCandidate($"Maps/{assetBaseName}");
-        AddCandidate($"Buildings/{assetBaseName}");
-        AddCandidate($"LooseSprites/{assetBaseName}");
-        AddCandidate($"TileSheets/{assetBaseName}");
-        AddCandidate(assetBaseName);
+        this.AddSeasonAwareCandidates(candidates, seen, $"Maps/{assetBaseName}");
+        this.AddSeasonAwareCandidates(candidates, seen, $"Buildings/{assetBaseName}");
+        this.AddSeasonAwareCandidates(candidates, seen, $"LooseSprites/{assetBaseName}");
+        this.AddSeasonAwareCandidates(candidates, seen, $"TileSheets/{assetBaseName}");
+        this.AddSeasonAwareCandidates(candidates, seen, assetBaseName);
 
         return candidates;
     }
 
+    private void AddSeasonAwareCandidates(List<string> candidates, HashSet<string> seen, string candidate)
+    {
+        foreach (var value in this.GetSeasonAwareAssetCandidates(candidate))
+        {
+            var normalized = value.Replace('\\', '/').Trim().Trim('/');
+            if (string.IsNullOrWhiteSpace(normalized))
+                continue;
+
+            if (seen.Add(normalized))
+                candidates.Add(normalized);
+        }
+    }
+
+    private IEnumerable<string> GetSeasonAwareAssetCandidates(string assetName)
+    {
+        var seasonVariant = TryReplaceSeasonPrefix(assetName, this.GetCurrentSeason());
+        if (!string.IsNullOrWhiteSpace(seasonVariant))
+            yield return seasonVariant;
+
+        yield return assetName;
+    }
+
+    private string GetCurrentSeason()
+    {
+        var season = Game1.currentSeason;
+        return Array.Exists(SeasonalPrefixes, prefix => string.Equals(prefix, season, StringComparison.OrdinalIgnoreCase))
+            ? season
+            : "spring";
+    }
+
+    private static string? TryReplaceSeasonPrefix(string assetName, string season)
+    {
+        if (string.IsNullOrWhiteSpace(assetName) || string.IsNullOrWhiteSpace(season))
+            return null;
+
+        var normalizedAssetName = assetName.Replace('\\', '/');
+        var slashIndex = normalizedAssetName.LastIndexOf('/');
+        var directory = slashIndex >= 0 ? normalizedAssetName[..(slashIndex + 1)] : string.Empty;
+        var leaf = slashIndex >= 0 ? normalizedAssetName[(slashIndex + 1)..] : normalizedAssetName;
+        if (string.IsNullOrWhiteSpace(leaf))
+            return null;
+
+        foreach (var prefix in SeasonalPrefixes)
+        {
+            if (!leaf.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return directory + season + leaf[prefix.Length..];
+        }
+
+        return null;
+    }
+
     private Dictionary<string, Texture2D> ComposeDrawTextures(
         XElement mapElement,
-        Texture2D tilesetTexture,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight,
+        IReadOnlyList<LoadedTileset> tilesets,
         int mapWidth,
         int mapHeight,
         int tileWidth,
@@ -370,11 +475,7 @@ public sealed class TiledLoader
         {
             var texture = this.ComposeLayerGroupTexture(
                 group,
-                tilesetTexture,
-                firstGid,
-                columns,
-                tilesetTileWidth,
-                tilesetTileHeight,
+                tilesets,
                 mapWidth,
                 mapHeight,
                 tileWidth,
@@ -391,11 +492,7 @@ public sealed class TiledLoader
 
     private Texture2D? ComposeLayerGroupTexture(
         IEnumerable<XElement> layers,
-        Texture2D tilesetTexture,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight,
+        IReadOnlyList<LoadedTileset> tilesets,
         int mapWidth,
         int mapHeight,
         int tileWidth,
@@ -418,28 +515,38 @@ public sealed class TiledLoader
             spriteBatch.Begin(samplerState: SamplerState.PointClamp, blendState: BlendState.AlphaBlend);
             foreach (var layerElement in layers)
             {
-                var gids = this.ReadLayerData(layerElement);
-                for (var index = 0; index < gids.Count; index++)
+                var tiles = this.ReadLayerData(layerElement);
+                for (var index = 0; index < tiles.Count; index++)
                 {
-                    var gid = gids[index];
-                    if (gid < firstGid)
+                    var tile = tiles[index];
+                    if (this.GetTilesetForGlobalId(tilesets, tile.GlobalId) is not LoadedTileset tileset)
                         continue;
 
                     drewAnyTile = true;
-                    var tileIndex = gid - firstGid;
+                    var tileIndex = tile.GlobalId - tileset.FirstGid;
                     var sourceRectangle = new Rectangle(
-                        (tileIndex % columns) * tilesetTileWidth,
-                        (tileIndex / columns) * tilesetTileHeight,
-                        tilesetTileWidth,
-                        tilesetTileHeight);
+                        (tileIndex % tileset.Columns) * tileset.TileWidth,
+                        (tileIndex / tileset.Columns) * tileset.TileHeight,
+                        tileset.TileWidth,
+                        tileset.TileHeight);
 
-                    var destinationRectangle = new Rectangle(
-                        (index % mapWidth) * tileWidth,
-                        (index / mapWidth) * tileHeight,
-                        tileWidth,
-                        tileHeight);
+                    var position = new Vector2(
+                        (index % mapWidth) * tileWidth + (tileWidth / 2f),
+                        (index / mapWidth) * tileHeight + (tileHeight / 2f));
+                    var scale = new Vector2(
+                        tileWidth / (float)tileset.TileWidth,
+                        tileHeight / (float)tileset.TileHeight);
 
-                    spriteBatch.Draw(tilesetTexture, destinationRectangle, sourceRectangle, Color.White);
+                    spriteBatch.Draw(
+                        tileset.Texture,
+                        position,
+                        sourceRectangle,
+                        Color.White,
+                        tile.Rotation,
+                        new Vector2(sourceRectangle.Width / 2f, sourceRectangle.Height / 2f),
+                        scale,
+                        tile.Effects,
+                        0f);
                 }
             }
 
@@ -454,7 +561,47 @@ public sealed class TiledLoader
         return drewAnyTile ? renderTarget : null;
     }
 
-    private List<int> ReadLayerData(XElement layerElement)
+    private void PopulateTileSprites(
+        XElement mapElement,
+        RuntimeBuildingDefinition definition,
+        IReadOnlyList<LoadedTileset> tilesets,
+        int mapWidth,
+        int mapHeight,
+        int tileWidth,
+        int tileHeight)
+    {
+        foreach (var layerElement in mapElement.Elements("layer"))
+        {
+            var drawLayer = this.ResolveDrawLayer(layerElement);
+            var tiles = this.ReadLayerData(layerElement);
+            for (var index = 0; index < tiles.Count; index++)
+            {
+                var tile = tiles[index];
+                if (this.GetTilesetForGlobalId(tilesets, tile.GlobalId) is not LoadedTileset tileset)
+                    continue;
+
+                var tileIndex = tile.GlobalId - tileset.FirstGid;
+                var sourceRectangle = new Rectangle(
+                    (tileIndex % tileset.Columns) * tileset.TileWidth,
+                    (tileIndex / tileset.Columns) * tileset.TileHeight,
+                    tileset.TileWidth,
+                    tileset.TileHeight);
+
+                definition.AddTileSprite(drawLayer, new RuntimeTileSprite
+                {
+                    Texture = tileset.Texture,
+                    SourceRect = sourceRectangle,
+                    DrawPosition = new Point(
+                        (index % mapWidth) * tileWidth,
+                        (index / mapWidth) * tileHeight),
+                    Effects = tile.Effects,
+                    Rotation = tile.Rotation,
+                });
+            }
+        }
+    }
+
+    private List<TiledTileTransform> ReadLayerData(XElement layerElement)
     {
         var dataElement = layerElement.Element("data")
             ?? throw new InvalidOperationException($"Layer '{layerElement.Attribute("name")?.Value}' is missing data.");
@@ -463,7 +610,7 @@ public sealed class TiledLoader
 
         return dataElement.Value
             .Split(new[] { ',', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(value => int.Parse(value, CultureInfo.InvariantCulture))
+            .Select(ParseTiledTileTransform)
             .ToList();
     }
 
@@ -472,10 +619,7 @@ public sealed class TiledLoader
         int tileWidth,
         int tileHeight,
         RuntimeBuildingDefinition definition,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight)
+        IReadOnlyList<LoadedTileset> tilesets)
     {
         foreach (var objectGroup in mapElement.Elements("objectgroup"))
         {
@@ -486,7 +630,7 @@ public sealed class TiledLoader
                 var y = this.GetRequiredFloatAttribute(objectElement, "y");
                 var width = this.GetOptionalFloatAttribute(objectElement, "width") ?? tileWidth;
                 var height = this.GetOptionalFloatAttribute(objectElement, "height") ?? tileHeight;
-                var gid = this.GetOptionalIntAttribute(objectElement, "gid");
+                var gid = this.GetOptionalTiledGlobalIdAttribute(objectElement, "gid");
                 var tileRectangle = new Rectangle(
                     (int)(x / tileWidth),
                     (int)(y / tileHeight),
@@ -506,10 +650,7 @@ public sealed class TiledLoader
                     gid,
                     (int)Math.Round(width),
                     (int)Math.Round(height),
-                    firstGid,
-                    columns,
-                    tilesetTileWidth,
-                    tilesetTileHeight);
+                    tilesets);
 
                 if (this.TryMapLegacySpecialActionToRole(
                         definition,
@@ -521,10 +662,7 @@ public sealed class TiledLoader
                         gid,
                         (int)Math.Round(width),
                         (int)Math.Round(height),
-                        firstGid,
-                        columns,
-                        tilesetTileWidth,
-                        tilesetTileHeight))
+                        tilesets))
                     continue;
 
                 var runtimeAction = this.ResolveRuntimeAction(action, role);
@@ -538,12 +676,7 @@ public sealed class TiledLoader
 
                 if (!string.IsNullOrWhiteSpace(touchAction))
                 {
-                    var objectGroupName = objectGroup.Attribute("name")?.Value ?? "<unnamed>";
-                    var objectId = objectElement.Attribute("id")?.Value ?? "<none>";
                     definition.Actions.Add(new RuntimeAction(tileRectangle, touchAction, triggerOnTouch: true));
-                    this.monitor.Log(
-                        $"[TouchAction] Parsed TMX TouchAction for '{definition.Id}': area={FormatRectangle(tileRectangle)}, action='{touchAction}', objectGroup='{objectGroupName}', objectId='{objectId}'.",
-                        LogLevel.Debug);
                 }
             }
         }
@@ -559,10 +692,7 @@ public sealed class TiledLoader
         int? gid,
         int objectWidth,
         int objectHeight,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight)
+        IReadOnlyList<LoadedTileset> tilesets)
     {
         if (string.IsNullOrWhiteSpace(role))
             return;
@@ -594,13 +724,13 @@ public sealed class TiledLoader
 
         if (string.Equals(role, "AnimalDoorClosed", StringComparison.OrdinalIgnoreCase))
         {
-            definition.BuildingDrawLayers.Add(this.CreateAnimalDoorDrawLayer(definition, "Closed", properties, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight));
+            definition.BuildingDrawLayers.Add(this.CreateAnimalDoorDrawLayer(definition, "Closed", properties, gid, objectWidth, objectHeight, tilesets));
             return;
         }
 
         if (string.Equals(role, "AnimalDoorOpen", StringComparison.OrdinalIgnoreCase))
         {
-            definition.BuildingDrawLayers.Add(this.CreateAnimalDoorDrawLayer(definition, "Open", properties, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight));
+            definition.BuildingDrawLayers.Add(this.CreateAnimalDoorDrawLayer(definition, "Open", properties, gid, objectWidth, objectHeight, tilesets));
         }
     }
 
@@ -614,29 +744,26 @@ public sealed class TiledLoader
         int? gid,
         int objectWidth,
         int objectHeight,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight)
+        IReadOnlyList<LoadedTileset> tilesets)
     {
         if (string.IsNullOrWhiteSpace(action))
             return false;
 
         if (string.Equals(action, "HumanDoor", StringComparison.OrdinalIgnoreCase))
         {
-            this.ApplyObjectRole(definition, "HumanDoor", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
+            this.ApplyObjectRole(definition, "HumanDoor", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, tilesets);
             return true;
         }
 
         if (string.Equals(action, "Chimney", StringComparison.OrdinalIgnoreCase))
         {
-            this.ApplyObjectRole(definition, "Chimney", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
+            this.ApplyObjectRole(definition, "Chimney", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, tilesets);
             return true;
         }
 
         if (action.StartsWith("AnimalDoor", StringComparison.OrdinalIgnoreCase))
         {
-            this.ApplyObjectRole(definition, "AnimalDoor", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
+            this.ApplyObjectRole(definition, "AnimalDoor", properties, tileRectangle, pixelX, pixelY, gid, objectWidth, objectHeight, tilesets);
             this.TryParseAnimalDoorAction(definition, action);
             return true;
         }
@@ -651,15 +778,12 @@ public sealed class TiledLoader
         int? gid,
         int objectWidth,
         int objectHeight,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight)
+        IReadOnlyList<LoadedTileset> tilesets)
     {
         var animalDoor = definition.AnimalDoor ?? Rectangle.Empty;
         var basePixelX = animalDoor.X * Game1.tileSize;
         var basePixelY = animalDoor.Y * Game1.tileSize;
-        var sourceRect = this.ResolveAnimalDoorSourceRect(properties, gid, objectWidth, objectHeight, firstGid, columns, tilesetTileWidth, tilesetTileHeight);
+        var sourceRect = this.ResolveAnimalDoorSourceRect(properties, gid, objectWidth, objectHeight, tilesets);
 
         return new RuntimeDrawLayer
         {
@@ -670,7 +794,7 @@ public sealed class TiledLoader
                 basePixelX + this.GetIntProperty(properties, "DrawOffsetX", 0),
                 basePixelY + this.GetIntProperty(properties, "DrawOffsetY", 0)),
             DrawInBackground = this.GetBoolProperty(properties, "DrawInBackground", false),
-            SortTileOffset = this.GetFloatProperty(properties, "SortTileOffset", string.Equals(state, "Open", StringComparison.OrdinalIgnoreCase) ? 1f : 0.02f),
+            SortTileOffset = this.GetFloatProperty(properties, "SortTileOffset", 0f),
             FrameDuration = this.GetIntProperty(properties, "FrameDuration", 90),
             FrameCount = this.GetIntProperty(properties, "FrameCount", 1),
             FramesPerRow = this.GetIntProperty(properties, "FramesPerRow", -1),
@@ -685,19 +809,19 @@ public sealed class TiledLoader
         int? gid,
         int objectWidth,
         int objectHeight,
-        int firstGid,
-        int columns,
-        int tilesetTileWidth,
-        int tilesetTileHeight)
+        IReadOnlyList<LoadedTileset> tilesets)
     {
-        if (gid is int tileGid && tileGid >= firstGid)
+        if (gid is int tileGid)
         {
-            var tileIndex = tileGid - firstGid;
-            return new Rectangle(
-                (tileIndex % columns) * tilesetTileWidth,
-                (tileIndex / columns) * tilesetTileHeight,
-                Math.Max(tilesetTileWidth, objectWidth),
-                Math.Max(tilesetTileHeight, objectHeight));
+            if (this.GetTilesetForGlobalId(tilesets, tileGid) is LoadedTileset tileset)
+            {
+                var tileIndex = tileGid - tileset.FirstGid;
+                return new Rectangle(
+                    (tileIndex % tileset.Columns) * tileset.TileWidth,
+                    (tileIndex / tileset.Columns) * tileset.TileHeight,
+                    Math.Max(tileset.TileWidth, objectWidth),
+                    Math.Max(tileset.TileHeight, objectHeight));
+            }
         }
 
         return new Rectangle(
@@ -761,10 +885,10 @@ public sealed class TiledLoader
             if (!includeForCollision)
                 continue;
 
-            var gids = this.ReadLayerData(layer);
-            for (var index = 0; index < gids.Count; index++)
+            var tiles = this.ReadLayerData(layer);
+            for (var index = 0; index < tiles.Count; index++)
             {
-                if (gids[index] <= 0)
+                if (tiles[index].GlobalId <= 0)
                     continue;
 
                 collisionTiles.Add(new Point(index % mapWidth, index / mapWidth));
@@ -786,10 +910,10 @@ public sealed class TiledLoader
                 continue;
             }
 
-            var gids = this.ReadLayerData(layer);
-            for (var index = 0; index < gids.Count; index++)
+            var tiles = this.ReadLayerData(layer);
+            for (var index = 0; index < tiles.Count; index++)
             {
-                if (gids[index] <= 0)
+                if (tiles[index].GlobalId <= 0)
                     continue;
 
                 occupiedTiles.Add(new Point(index % mapWidth, index / mapWidth));
@@ -835,13 +959,6 @@ public sealed class TiledLoader
                 new Rectangle(action.Area.X - origin.X, action.Area.Y - origin.Y, action.Area.Width, action.Area.Height),
                 action.Action,
                 action.TriggerOnTouch);
-
-            if (action.TriggerOnTouch)
-            {
-                this.monitor.Log(
-                    $"[TouchAction] Normalized TouchAction for '{definition.Id}': {FormatRectangle(action.Area)} -> {FormatRectangle(definition.Actions[i].Area)}, action='{action.Action}', origin=({origin.X}, {origin.Y}).",
-                    LogLevel.Debug);
-            }
         }
 
         var normalizedCollisionTiles = definition.CollisionTiles
@@ -949,9 +1066,19 @@ public sealed class TiledLoader
             : null;
     }
 
-    private static string FormatRectangle(Rectangle rectangle)
+    private LoadedTileset? GetTilesetForGlobalId(IReadOnlyList<LoadedTileset> tilesets, int globalId)
     {
-        return $"({rectangle.X}, {rectangle.Y}, {rectangle.Width}, {rectangle.Height})";
+        if (globalId <= 0)
+            return null;
+
+        for (var index = tilesets.Count - 1; index >= 0; index--)
+        {
+            var tileset = tilesets[index];
+            if (globalId >= tileset.FirstGid)
+                return tileset;
+        }
+
+        return null;
     }
 
     private static string? NormalizeBuilder(string? rawValue)
@@ -1018,6 +1145,71 @@ public sealed class TiledLoader
             : null;
     }
 
+    private int? GetOptionalTiledGlobalIdAttribute(XElement element, string attributeName)
+    {
+        var rawValue = element.Attribute(attributeName)?.Value;
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return null;
+
+        return uint.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? ParseTiledGlobalId(value)
+            : null;
+    }
+
+    private static int ParseTiledGlobalId(string value)
+    {
+        if (!uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gid))
+            throw new InvalidOperationException($"Invalid TMX gid value '{value}'.");
+
+        return ParseTiledGlobalId(gid);
+    }
+
+    private static int ParseTiledGlobalId(uint gid)
+    {
+        return unchecked((int)(gid & ~TiledFlipFlagMask));
+    }
+
+    private static TiledTileTransform ParseTiledTileTransform(string value)
+    {
+        if (!uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gid))
+            throw new InvalidOperationException($"Invalid TMX gid value '{value}'.");
+
+        return ParseTiledTileTransform(gid);
+    }
+
+    private static TiledTileTransform ParseTiledTileTransform(uint gid)
+    {
+        var tileId = ParseTiledGlobalId(gid);
+        if (tileId <= 0)
+            return new TiledTileTransform(tileId, SpriteEffects.None, 0f);
+
+        var flippedHorizontally = (gid & TiledFlippedHorizontallyFlag) != 0;
+        var flippedVertically = (gid & TiledFlippedVerticallyFlag) != 0;
+        var flippedDiagonally = (gid & TiledFlippedDiagonallyFlag) != 0;
+
+        if (!flippedDiagonally)
+        {
+            var effects = SpriteEffects.None;
+            if (flippedHorizontally)
+                effects |= SpriteEffects.FlipHorizontally;
+            if (flippedVertically)
+                effects |= SpriteEffects.FlipVertically;
+
+            return new TiledTileTransform(tileId, effects, 0f);
+        }
+
+        if (flippedHorizontally && flippedVertically)
+            return new TiledTileTransform(tileId, SpriteEffects.FlipHorizontally, MathHelper.PiOver2);
+
+        if (flippedHorizontally)
+            return new TiledTileTransform(tileId, SpriteEffects.None, MathHelper.PiOver2);
+
+        if (flippedVertically)
+            return new TiledTileTransform(tileId, SpriteEffects.None, MathHelper.Pi + MathHelper.PiOver2);
+
+        return new TiledTileTransform(tileId, SpriteEffects.FlipHorizontally, MathHelper.Pi + MathHelper.PiOver2);
+    }
+
     private float GetRequiredFloatAttribute(XElement element, string attributeName)
     {
         return this.GetOptionalFloatAttribute(element, attributeName)
@@ -1068,4 +1260,7 @@ public sealed class TiledLoader
             return this.values.ContainsKey(key);
         }
     }
+
+    private readonly record struct TiledTileTransform(int GlobalId, SpriteEffects Effects, float Rotation);
+    private readonly record struct LoadedTileset(int FirstGid, int Columns, int TileWidth, int TileHeight, Texture2D Texture);
 }
